@@ -284,11 +284,11 @@ const RelationshipManagers = () => {
       }
 
       setIsCreateAgentModalOpen(false)
-      toast.success('Success', 'Agent created successfully')
+      toast.success('Success', 'Partner created successfully')
       await fetchRelationshipManagers()
     } catch (error) {
       console.error('Error creating agent:', error)
-      toast.error('Error', error.message || 'Failed to create agent')
+      toast.error('Error', error.message || 'Failed to create partner')
     } finally {
       setIsCreatingAgent(false)
     }
@@ -395,7 +395,7 @@ const RelationshipManagers = () => {
                   Email: r.email || 'N/A',
                   City: r.address?.city || 'N/A',
                   State: r.address?.state || 'N/A',
-                  Agents: stats.agents,
+                  Partners: stats.agents,
                   Leads: stats.leads,
                   Revenue: stats.revenue,
                   Status: r.status || 'N/A',
@@ -505,7 +505,7 @@ const RelationshipManagers = () => {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('agents')}>
-                  <div className="flex items-center gap-2">Agents {getSortIcon('agents')}</div>
+                  <div className="flex items-center gap-2">Partners {getSortIcon('agents')}</div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('leads')}>
                   <div className="flex items-center gap-2">Total Leads {getSortIcon('leads')}</div>
@@ -687,7 +687,7 @@ const RelationshipManagers = () => {
                 const stats = getRMStats(ownerId)
                 return (
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500">Agents</p><p className="text-lg font-bold text-gray-900">{stats.agents}</p></div>
+                    <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500">Partners</p><p className="text-lg font-bold text-gray-900">{stats.agents}</p></div>
                     <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500">Total Leads</p><p className="text-lg font-bold text-primary-900">{stats.leads}</p></div>
                     <div className="bg-gray-50 rounded-lg p-3 col-span-2"><p className="text-xs text-gray-500">Revenue</p><p className="text-lg font-bold text-gray-900">₹{stats.revenue.toLocaleString()}</p></div>
                   </div>
@@ -698,7 +698,7 @@ const RelationshipManagers = () => {
             <div className="pt-4 border-t border-gray-200">
               <div className="flex flex-col gap-2">
                 <button onClick={() => { setIsDetailModalOpen(false); handleEdit(selectedRM) }} className="w-full px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors">Edit Relationship Manager</button>
-                <button onClick={() => { setIsDetailModalOpen(false); handleCreateAgentForRM(selectedRM) }} className="w-full px-4 py-2 bg-primary-700 text-white rounded-lg hover:bg-primary-600 transition-colors">Create Agent</button>
+                <button onClick={() => { setIsDetailModalOpen(false); handleCreateAgentForRM(selectedRM) }} className="w-full px-4 py-2 bg-primary-700 text-white rounded-lg hover:bg-primary-600 transition-colors">Create Partner</button>
               </div>
             </div>
           </div>
@@ -715,7 +715,7 @@ const RelationshipManagers = () => {
         cancelText="Cancel"
         type="danger"
       />
-      <Modal isOpen={isCreateAgentModalOpen} onClose={() => { setIsCreateAgentModalOpen(false); setSelectedRM(null) }} title={`Create Agent${selectedRM ? ` for ${selectedRM.name}` : ''}`} size="md">
+      <Modal isOpen={isCreateAgentModalOpen} onClose={() => { setIsCreateAgentModalOpen(false); setSelectedRM(null) }} title={`Create Partner${selectedRM ? ` for ${selectedRM.name}` : ''}`} size="md">
         <AgentForm
           onSave={handleCreateAgentSave}
           onClose={() => { setIsCreateAgentModalOpen(false); setSelectedRM(null) }}

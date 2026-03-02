@@ -13,7 +13,7 @@ const generateInvoiceNumber = () => {
   return `INV-${year}${month}${day}-${random}`
 }
 
-const InvoiceForm = ({ invoice, onSave, onClose }) => {
+const InvoiceForm = ({ invoice, onSave, onClose, leads = [] }) => {
   const [formData, setFormData] = useState({
     leadId: '',
     commissionAmount: '',
@@ -149,10 +149,11 @@ const InvoiceForm = ({ invoice, onSave, onClose }) => {
     }
   }
 
-  // Update selected lead when leadId changes
+  // Update selected lead when leadId changes (leads from parent for dropdown sync; when editing, selectedLead is set from invoice)
+  const leadsList = Array.isArray(leads) ? leads : []
   useEffect(() => {
-    if (formData.leadId) {
-      const lead = leads.find(l => (l.id || l._id) === formData.leadId)
+    if (formData.leadId && leadsList.length > 0) {
+      const lead = leadsList.find(l => (l.id || l._id) === formData.leadId || (l.id || l._id)?.toString() === String(formData.leadId))
       setSelectedLead(lead)
       // Auto-populate commission amount from lead if available
       if (lead && (lead.actualCommission || lead.expectedCommission)) {
@@ -164,7 +165,7 @@ const InvoiceForm = ({ invoice, onSave, onClose }) => {
     } else {
       setSelectedLead(null)
     }
-  }, [formData.leadId, leads])
+  }, [formData.leadId, leadsList])
 
   // Formula: Taxable = commission; GST = 18% of Taxable; TDS = 2% of Taxable; Gross = Taxable + GST - TDS
   const GST_RATE = 18
@@ -191,7 +192,7 @@ const InvoiceForm = ({ invoice, onSave, onClose }) => {
       const agentId = leadToValidate.agent?._id || leadToValidate.agent?.id || leadToValidate.agent || leadToValidate.agentId
       const franchiseId = leadToValidate.franchise?._id || leadToValidate.franchise?.id || leadToValidate.franchise || leadToValidate.franchiseId
       if (!agentId) {
-        newErrors.leadId = 'Selected lead must have an agent assigned'
+        newErrors.leadId = 'Selected lead must have a partner assigned'
       }
       if (!franchiseId) {
         newErrors.leadId = 'Selected lead must have a franchise assigned'
@@ -232,7 +233,7 @@ const InvoiceForm = ({ invoice, onSave, onClose }) => {
     }
     
     if (!agentId || !franchiseId) {
-      toast.error('Error', 'Invoice must have both agent and franchise assigned')
+      toast.error('Error', 'Invoice must have both partner and franchise assigned')
       return
     }
     
@@ -307,7 +308,7 @@ const InvoiceForm = ({ invoice, onSave, onClose }) => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Agent</p>
+                  <p className="text-xs text-gray-500 mb-1">Partner</p>
                   <p className="text-sm font-medium text-gray-900">
                     {selectedLead?.agent?.name || invoice.lead?.agent?.name || invoice.agent?.name || 'N/A'}
                   </p>
@@ -396,7 +397,9 @@ const InvoiceForm = ({ invoice, onSave, onClose }) => {
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
           <option value="escalated">Escalated</option>
+          <option value="gst_paid">GST Paid</option>
           <option value="paid">Paid</option>
+          <option value="regular_paid">Regular Paid</option>
         </select>
       </div>
 

@@ -282,7 +282,7 @@ const AccountantInvoices = () => {
         return
       }
       if (!formData.agent) {
-        toast.error('Error', 'Agent is required')
+        toast.error('Error', 'Partner is required')
         return
       }
       if (!formData.franchise) {
@@ -301,7 +301,7 @@ const AccountantInvoices = () => {
         toast.error('Error', 'Net payable amount is required')
         return
       }
-      const validStatuses = ['draft', 'pending', 'approved', 'rejected', 'escalated', 'gst_paid', 'paid']
+      const validStatuses = ['draft', 'pending', 'approved', 'rejected', 'escalated', 'gst_paid', 'paid', 'regular_paid']
       if (!validStatuses.includes(formData.status)) {
         toast.error('Error', `Invalid status. Must be one of: ${validStatuses.join(', ')}`)
         return
@@ -399,6 +399,7 @@ const AccountantInvoices = () => {
     { value: 'escalated', label: 'Escalated' },
     { value: 'gst_paid', label: 'GST Paid' },
     { value: 'paid', label: 'Paid' },
+    { value: 'regular_paid', label: 'Regular Paid' },
     { value: 'overdue', label: 'Overdue' },
   ]
 
@@ -417,7 +418,7 @@ const AccountantInvoices = () => {
                 const rows = sortedInvoices.map((inv) => ({
                   'Invoice Number': inv.invoiceNumber || 'N/A',
                   'Loan Account No': getLeadName(inv.lead?._id || inv.lead?.id || inv.lead || inv.leadId) || 'N/A',
-                  Agent: inv.agent?.name || 'N/A',
+                  Partner: inv.agent?.name || 'N/A',
                   Associated: getAssociatedForInvoice(inv),
                   'Commission Amount': inv.commissionAmount ?? '',
                   'TDS Amount': inv.tdsAmount ?? '',
@@ -527,9 +528,9 @@ const AccountantInvoices = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Agent</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Partner</label>
               <select value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white">
-                <option value="">All agents</option>
+                <option value="">All partners</option>
                 {agents.map((a) => <option key={a._id || a.id} value={a._id || a.id}>{a.name || a.email || 'Unnamed'}</option>)}
               </select>
             </div>
@@ -676,9 +677,9 @@ const AccountantInvoices = () => {
                             : 'bg-gray-100 text-gray-700'
                         }`}>
                           {invoice.invoiceType === 'agent' 
-                            ? 'Agent' 
+                            ? 'Partner' 
                             : invoice.invoiceType === 'sub_agent' 
-                            ? 'SubAgent' 
+                            ? 'Sub Partner' 
                             : invoice.invoiceType === 'franchise' && invoice.isReferralFranchise
                             ? 'Referral Franchise'
                             : invoice.invoiceType === 'franchise' 
@@ -742,6 +743,7 @@ const AccountantInvoices = () => {
                             <option value="pending">Pending</option>
                             <option value="gst_paid">GST Paid</option>
                             <option value="paid">Paid</option>
+                            <option value="regular_paid">Regular Paid</option>
                           </select>
                         )}
                         <button
@@ -793,7 +795,7 @@ const AccountantInvoices = () => {
         onClose={() => setIsCreateModalOpen(false)}
         title="Create New Invoice"
       >
-        <InvoiceForm onSave={handleSave} onClose={() => setIsCreateModalOpen(false)} />
+        <InvoiceForm leads={leads} onSave={handleSave} onClose={() => setIsCreateModalOpen(false)} />
       </Modal>
 
       {/* Edit Modal */}
@@ -805,7 +807,7 @@ const AccountantInvoices = () => {
         }}
         title="Edit Invoice"
       >
-        <InvoiceForm invoice={selectedInvoice} onSave={handleSave} onClose={() => setIsEditModalOpen(false)} />
+        <InvoiceForm invoice={selectedInvoice} leads={leads} onSave={handleSave} onClose={() => setIsEditModalOpen(false)} />
       </Modal>
 
       {/* Detail Modal */}
@@ -876,7 +878,7 @@ const AccountantInvoices = () => {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Agent</label>
+                  <label className="text-sm font-medium text-gray-500">Partner</label>
                   <p className="mt-1 text-sm text-gray-900">
                     {invoice.agent?.name || 'N/A'}
                     {invoice.agent?.agentType === 'GST' && (
@@ -895,7 +897,7 @@ const AccountantInvoices = () => {
                 </div>
                 {invoice.subAgent && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Sub Agent</label>
+                    <label className="text-sm font-medium text-gray-500">Sub Partner</label>
                     <p className="mt-1 text-sm text-gray-900">
                       {invoice.subAgent?.name || 'N/A'}
                       {invoice.subAgent?.agentType === 'GST' && (
@@ -981,7 +983,7 @@ const AccountantInvoices = () => {
                   </div>
                   {invoice.agent?.gst && (
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Agent GST No</label>
+                      <label className="text-sm font-medium text-gray-500">Partner GST No</label>
                       <p className="mt-1 text-sm text-gray-900">{invoice.agent.gst}</p>
                     </div>
                   )}

@@ -222,11 +222,11 @@ const Dashboard = () => {
         <span>Dashboard</span>
         <span>/</span>
         <span className="text-gray-900 font-medium">Home</span>
-        {isAgent && <><span>/</span><span className="text-gray-900 font-medium">Agent Portal</span></>}
+        {isAgent && <><span>/</span><span className="text-gray-900 font-medium">Partner Portal</span></>}
         {!isAgent && <><span>/</span><span className="text-gray-900 font-medium">Analytics</span></>}
       </div>
 
-      {/* Agent Dashboard */}
+      {/* Partner Dashboard */}
       {isAgent ? (
         <>
           {/* Summary Cards */}

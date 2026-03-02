@@ -86,10 +86,10 @@ const Leads = () => {
         const remainingIndex = updated.findIndex(col => col.key === 'remainingAmount')
         if (remainingIndex !== -1) {
           const newCommissionColumns = [
-            { key: 'agentCommissionPercentage', label: 'Agent Comm %', visible: true, sortable: true },
-            { key: 'agentCommissionAmount', label: 'Agent Comm AMT', visible: true, sortable: true },
-            { key: 'subAgentCommissionPercentage', label: 'Sub Agent Comm %', visible: true, sortable: true },
-            { key: 'subAgentCommissionAmount', label: 'Sub Agent Comm AMT', visible: true, sortable: true },
+            { key: 'agentCommissionPercentage', label: 'Partner Comm %', visible: true, sortable: true },
+            { key: 'agentCommissionAmount', label: 'Partner Comm AMT', visible: true, sortable: true },
+            { key: 'subAgentCommissionPercentage', label: 'Sub Partner Comm %', visible: true, sortable: true },
+            { key: 'subAgentCommissionAmount', label: 'Sub Partner Comm AMT', visible: true, sortable: true },
             { key: 'commissionPercentage', label: 'Associated Comm %', visible: true, sortable: true },
             { key: 'commissionAmount', label: 'Associated Comm AMT', visible: true, sortable: true },
             { key: 'referralFranchiseCommissionPercentage', label: 'Refer Associated Comm %', visible: true, sortable: true },
@@ -119,19 +119,19 @@ const Leads = () => {
         if (!hasSubAgent) {
           const agentIndex = updated.findIndex(col => col.key === 'agent')
           if (agentIndex !== -1) {
-            updated.splice(agentIndex + 1, 0, { key: 'subAgent', label: 'SubAgent', visible: true, sortable: false })
+            updated.splice(agentIndex + 1, 0, { key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false })
           } else {
             // If agent not found, add subAgent after status
             const statusIndex = updated.findIndex(col => col.key === 'status')
             if (statusIndex !== -1) {
-              updated.splice(statusIndex + 1, 0, { key: 'subAgent', label: 'SubAgent', visible: true, sortable: false })
+              updated.splice(statusIndex + 1, 0, { key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false })
             } else {
               // Fallback: add at the end before actions
               const actionsIndex = updated.findIndex(col => col.key === 'actions')
               if (actionsIndex !== -1) {
-                updated.splice(actionsIndex, 0, { key: 'subAgent', label: 'SubAgent', visible: true, sortable: false })
+                updated.splice(actionsIndex, 0, { key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false })
               } else {
-                updated.push({ key: 'subAgent', label: 'SubAgent', visible: true, sortable: false })
+                updated.push({ key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false })
               }
             }
           }
@@ -158,17 +158,17 @@ const Leads = () => {
       { key: 'loanAmount', label: 'Loan Amount', visible: true, sortable: true },
       { key: 'disbursedAmount', label: 'Disbursed Amount', visible: true, sortable: true },
       { key: 'remainingAmount', label: 'Remaining', visible: true, sortable: true },
-      { key: 'agentCommissionPercentage', label: 'Agent Comm %', visible: true, sortable: true },
-      { key: 'agentCommissionAmount', label: 'Agent Comm AMT', visible: true, sortable: true },
-      { key: 'subAgentCommissionPercentage', label: 'Sub Agent Comm %', visible: true, sortable: true },
-      { key: 'subAgentCommissionAmount', label: 'Sub Agent Comm AMT', visible: true, sortable: true },
+      { key: 'agentCommissionPercentage', label: 'Partner Comm %', visible: true, sortable: true },
+      { key: 'agentCommissionAmount', label: 'Partner Comm AMT', visible: true, sortable: true },
+      { key: 'subAgentCommissionPercentage', label: 'Sub Partner Comm %', visible: true, sortable: true },
+      { key: 'subAgentCommissionAmount', label: 'Sub Partner Comm AMT', visible: true, sortable: true },
       { key: 'commissionPercentage', label: 'Associated Comm %', visible: true, sortable: true },
       { key: 'commissionAmount', label: 'Associated Comm AMT', visible: true, sortable: true },
       { key: 'referralFranchiseCommissionPercentage', label: 'Refer Associated Comm %', visible: true, sortable: true },
       { key: 'referralFranchiseCommissionAmount', label: 'Refer Associated Comm AMT', visible: true, sortable: true },
       { key: 'status', label: 'Status', visible: true, sortable: true },
-      { key: 'agent', label: 'Agent', visible: true, sortable: false },
-      { key: 'subAgent', label: 'SubAgent', visible: true, sortable: false },
+      { key: 'agent', label: 'Partner', visible: true, sortable: false },
+      { key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false },
       { key: 'associated', label: 'Associated', visible: true, sortable: false },
       { key: 'referralFranchise', label: 'Referral Associated', visible: true, sortable: false },
       { key: 'bank', label: 'Bank Name', visible: true, sortable: false },

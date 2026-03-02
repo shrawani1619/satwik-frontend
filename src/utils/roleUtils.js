@@ -61,8 +61,8 @@ export const isFranchiseOwner = () => {
 };
 
 /**
- * Check if current user is an Agent
- * @returns {boolean} True if user is an Agent
+ * Check if current user is a Partner
+ * @returns {boolean} True if user is a Partner
  */
 export const isAgent = () => {
   return hasRole('agent');

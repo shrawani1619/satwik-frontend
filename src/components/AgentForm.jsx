@@ -537,7 +537,7 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
       {currentUser?.role === 'franchise' && !agent && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Agent Type <span className="text-red-500">*</span>
+            Partner Type <span className="text-red-500">*</span>
           </label>
           <select
             name="agentType"
@@ -695,7 +695,7 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
       {agent && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Agent Type <span className="text-red-500">*</span>
+            Partner Type <span className="text-red-500">*</span>
           </label>
           <select
             name="agentType"
@@ -737,7 +737,7 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
           disabled={isSaving}
           className={`px-4 py-2 text-sm font-medium text-white bg-primary-900 rounded-lg hover:bg-primary-800 transition-colors ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
         >
-          {isSaving ? (agent ? 'Updating...' : 'Creating...') : (agent ? 'Update Agent' : 'Create Agent')}
+          {isSaving ? (agent ? 'Updating...' : 'Creating...') : (agent ? 'Update Partner' : 'Create Partner')}
         </button>
       </div>
     </form>

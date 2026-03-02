@@ -9,6 +9,7 @@ const StatusBadge = ({ status }) => {
     active: { color: 'bg-green-100 text-green-800', label: 'Active' },
     inactive: { color: 'bg-gray-100 text-gray-800', label: 'Inactive' },
     paid: { color: 'bg-green-100 text-green-800', label: 'Paid' },
+    regular_paid: { color: 'bg-emerald-100 text-emerald-800', label: 'Regular Paid' },
     gst_paid: { color: 'bg-teal-100 text-teal-800', label: 'GST Paid' },
     pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Pending' },
     overdue: { color: 'bg-red-100 text-red-800', label: 'Overdue' },

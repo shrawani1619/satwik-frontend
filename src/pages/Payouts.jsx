@@ -405,7 +405,7 @@ const Payouts = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Payout number, agent..."
+                    placeholder="Payout number, partner..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
@@ -442,7 +442,7 @@ const Payouts = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Agent</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Partner</label>
                 <select
                   value={agentFilter}
                   onChange={(e) => setAgentFilter(e.target.value)}
@@ -500,7 +500,7 @@ const Payouts = () => {
                   onClick={() => handleSort('agent')}
                 >
                   <div className="flex items-center gap-1 sm:gap-2">
-                    Agent
+                    Partner
                     {getSortIcon('agent')}
                   </div>
                 </th>
@@ -687,7 +687,7 @@ const Payouts = () => {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Agent</label>
+                <label className="text-sm font-medium text-gray-500">Partner</label>
                 <p className="mt-1 text-sm text-gray-900">{getAgentDisplay(selectedPayout)}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {selectedPayout.agent?.email || selectedPayout.agent?.mobile || ''}

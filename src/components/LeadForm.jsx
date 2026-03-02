@@ -544,7 +544,7 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
     }
 
     // Validate commission fields only for bank-type leads (Admin/Accountant/Relationship Manager)
-    // Skip for Franchise (they use Agent Commission Details instead)
+    // Skip for Franchise (they use Partner Commission Details instead)
     // But skip validation if RM or Franchise assigned lead to self
     if (canSetCommission && !isNewLead && !isFranchise && !((isRelationshipManager || isFranchise) && isSelfSelected && !canSetCommissionForSelf)) {
       // When creating, both fields are required
@@ -572,35 +572,35 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
     // For agents: if a sub-agent is selected on a bank lead, require sub-agent commission %
     if (isAgent && !lead && !isNewLead && selectedSubAgentId) {
       if (!standard.subAgentCommissionPercentage || standard.subAgentCommissionPercentage === '') {
-        return toast.error('Sub Agent Commission Percentage is required when a Sub Agent is selected');
+        return toast.error('Sub Partner Commission Percentage is required when a Sub Partner is selected');
       }
       const pct = parseFloat(standard.subAgentCommissionPercentage) || 0;
       if (pct < 0 || pct > 100) {
-        return toast.error('Sub Agent Commission Percentage must be between 0 and 100');
+        return toast.error('Sub Partner Commission Percentage must be between 0 and 100');
       }
     }
 
     // Validate agent commission for franchise (when not assigned to self and creating bank leads)
     if (isFranchise && !isNewLead && !isSelfSelected) {
       if (!standard.agentCommissionPercentage || standard.agentCommissionPercentage === '') {
-        return toast.error('Agent Commission Percentage is required');
+        return toast.error('Partner Commission Percentage is required');
       }
       if (!standard.loanAmount || standard.loanAmount <= 0) {
-        return toast.error('Loan Amount is required to calculate Agent Commission');
+        return toast.error('Loan Amount is required to calculate Partner Commission');
       }
       
       // Validate agent commission percentage against admin limit
       if (adminCommissionLimit && adminCommissionLimit.limitType === 'percentage') {
         const agentPercentage = parseFloat(standard.agentCommissionPercentage) || 0;
         if (agentPercentage > adminCommissionLimit.maxCommissionValue) {
-          return toast.error(`Agent Commission Percentage cannot exceed Admin maximum limit of ${parseFloat(adminCommissionLimit.maxCommissionValue).toFixed(2)}%`);
+          return toast.error(`Partner Commission Percentage cannot exceed Admin maximum limit of ${parseFloat(adminCommissionLimit.maxCommissionValue).toFixed(2)}%`);
         }
       }
       
       // Validate agent commission percentage is between 0 and 100
       const agentPercentage = parseFloat(standard.agentCommissionPercentage) || 0;
       if (agentPercentage < 0 || agentPercentage > 100) {
-        return toast.error('Agent Commission Percentage must be between 0 and 100');
+        return toast.error('Partner Commission Percentage must be between 0 and 100');
       }
 
       // Validate agent commission amount is calculated correctly
@@ -608,7 +608,7 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
       const expectedAmount = ((loanAmount * agentPercentage) / 100).toFixed(2);
       const actualAmount = parseFloat(standard.agentCommissionAmount) || 0;
       if (Math.abs(actualAmount - parseFloat(expectedAmount)) > 0.01) {
-        return toast.error('Agent Commission Amount does not match calculated value. Please ensure Loan Amount is entered.');
+        return toast.error('Partner Commission Amount does not match calculated value. Please ensure Loan Amount is entered.');
       }
     }
 
@@ -861,7 +861,7 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
                     {selectedSubAgentId && (
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                          Sub Agent Commission (%)
+                          Sub Partner Commission (%)
                         </label>
                         <input
                           type="number"
@@ -977,7 +977,7 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
                 {!isAgent && !lead && (
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      Assign Agent *
+                      Assign Partner *
                     </label>
                     <select
                       value={selectedAgentId}
@@ -985,18 +985,18 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                       disabled={loadingAgents}
                     >
-                      <option value="">-- Select Agent --</option>
+                      <option value="">-- Select Partner --</option>
                       {(isRelationshipManager || isFranchise) && (
                         <option value="self">Self ({currentUser?.name || 'Me'})</option>
                       )}
                       {agents.map((agent) => (
                         <option key={agent._id || agent.id} value={agent._id || agent.id}>
-                          {agent.name || agent.email || 'Unknown Agent'}
+                          {agent.name || agent.email || 'Unknown Partner'}
                         </option>
                       ))}
                     </select>
                     {loadingAgents && (
-                      <p className="text-sm text-gray-500 mt-1">Loading agents...</p>
+                      <p className="text-sm text-gray-500 mt-1">Loading partners...</p>
                     )}
                   </div>
                 )}
@@ -1328,7 +1328,7 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
 
               {/* Commission Fields - Only for bank-type leads and non-agents */}
               {/* Hidden if RM or Franchise assigned lead to self */}
-              {/* For franchise, show Agent Commission Details instead, so hide this section */}
+              {/* For franchise, show Partner Commission Details instead, so hide this section */}
               {canSetCommission && !isNewLead && !isAgent && !isFranchise && !((isRelationshipManager || isFranchise) && isSelfSelected && !canSetCommissionForSelf) && (
                 <div className="border-t pt-6 space-y-4">
                   <h5 className="font-bold text-gray-800">Commission Details</h5>
@@ -1371,7 +1371,7 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
               {/* Agent Commission Fields - Only for Franchise when creating bank leads and not assigned to self */}
               {isFranchise && !isNewLead && !isAgent && !isSelfSelected && (
                 <div className="border-t pt-6 space-y-4">
-                  <h5 className="font-bold text-gray-800">Agent Commission Details</h5>
+                  <h5 className="font-bold text-gray-800">Partner Commission Details</h5>
                   {loadingCommissionLimit && (
                     <p className="text-sm text-gray-500">Loading commission limit...</p>
                   )}
@@ -1387,7 +1387,7 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                        Agent Commission Percentage (%) *
+                        Partner Commission Percentage (%) *
                       </label>
                       <input
                         type="number"
@@ -1406,7 +1406,7 @@ export default function LeadForm({ lead = null, onSave, onClose, isSubmitting = 
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                        Agent Commission Amount (₹) *
+                        Partner Commission Amount (₹) *
                       </label>
                       <input
                         type="number"

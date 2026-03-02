@@ -348,11 +348,11 @@ const Franchises = () => {
       }
 
       setIsCreateAgentModalOpen(false)
-      toast.success('Success', 'Agent created successfully')
+      toast.success('Success', 'Partner created successfully')
       await fetchAgents()
     } catch (error) {
       console.error('Error creating agent:', error)
-      toast.error('Error', error.message || 'Failed to create agent')
+      toast.error('Error', error.message || 'Failed to create partner')
     } finally {
       setIsCreatingAgent(false)
     }
@@ -498,7 +498,7 @@ const Franchises = () => {
                   Email: f.email || 'N/A',
                   City: f.address?.city || 'N/A',
                   State: f.address?.state || 'N/A',
-                  Agents: stats.agents,
+                  Partners: stats.agents,
                   Leads: stats.leads,
                   Revenue: stats.revenue,
                   Status: f.status || 'N/A',
@@ -538,7 +538,7 @@ const Franchises = () => {
           </div>
           <span className="text-gray-300 mx-1">|</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-gray-500 font-medium">Agents</span>
+            <span className="text-gray-500 font-medium">Partners</span>
             <span className="font-bold text-orange-600">{totalAgentsCount}</span>
           </div>
         </div>
@@ -559,7 +559,7 @@ const Franchises = () => {
           color="green"
         />
         <StatCard
-          title="Total Agents"
+          title="Total Partners"
           value={totalAgentsCount}
           icon={Users}
           color="orange"
@@ -969,7 +969,7 @@ const Franchises = () => {
                 }}
                 className="w-full px-4 py-2 bg-primary-700 text-white rounded-lg hover:bg-primary-600 transition-colors"
               >
-                Create Agent
+                Create Partner
               </button>
             </div>
           </div>
@@ -987,7 +987,7 @@ const Franchises = () => {
         cancelText="Cancel"
         type="danger"
       />
-      <Modal isOpen={isCreateAgentModalOpen} onClose={() => { setIsCreateAgentModalOpen(false); setSelectedFranchise(null) }} title={`Create Agent${selectedFranchise ? ` for ${selectedFranchise.name}` : ''}`} size="md">
+      <Modal isOpen={isCreateAgentModalOpen} onClose={() => { setIsCreateAgentModalOpen(false); setSelectedFranchise(null) }} title={`Create Partner${selectedFranchise ? ` for ${selectedFranchise.name}` : ''}`} size="md">
         <AgentForm
           onSave={handleCreateAgentSave}
           onClose={() => { setIsCreateAgentModalOpen(false); setSelectedFranchise(null) }}

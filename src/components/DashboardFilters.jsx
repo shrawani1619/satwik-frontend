@@ -243,14 +243,14 @@ export default function DashboardFilters({ filters = {}, onApply, onReset, role 
             )}
             {showAgent && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Agent</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Partner</label>
                 <select
                   value={local.agentId || ''}
                   onChange={(e) => handleChange('agentId', e.target.value)}
                   className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm bg-white"
                   disabled={loadingOptions}
                 >
-                  <option value="">All agents</option>
+                  <option value="">All partners</option>
                   {agents.map((a) => (
                     <option key={a._id || a.id} value={a._id || a.id}>
                       {a.name || a.email || 'Unnamed'}

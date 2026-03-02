@@ -216,8 +216,8 @@ const SubAgents = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sub Agents Management</h1>
-          <p className="text-sm text-gray-600 mt-1">Manage your sub-agent profiles</p>
+          <h1 className="text-2xl font-bold text-gray-900">Sub Partners Management</h1>
+          <p className="text-sm text-gray-600 mt-1">Manage your sub-partner profiles</p>
         </div>
         <button
           onClick={handleCreate}
@@ -246,13 +246,13 @@ const SubAgents = () => {
       {/* Statistics Cards - Desktop Only */}
       <div className="hidden md:grid grid-cols-1 md:grid-cols-2 gap-6">
         <StatCard
-          title="Total Sub Agents"
+          title="Total Sub Partners"
           value={totalSubAgents}
           icon={UserCheck}
           color="blue"
         />
         <StatCard
-          title="Active Sub Agents"
+          title="Active Sub Partners"
           value={activeSubAgents}
           icon={UserCheck}
           color="green"
@@ -322,7 +322,7 @@ const SubAgents = () => {
               ) : filteredSubAgents.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
-                    No sub-agents found
+                    No sub-partners found
                   </td>
                 </tr>
               ) : (
@@ -391,7 +391,7 @@ const SubAgents = () => {
           setIsEditModalOpen(false)
           setSelectedSubAgent(null)
         }}
-        title="Edit Sub Agent"
+        title="Edit Sub Partner"
       >
         <SubAgentForm subAgent={selectedSubAgent} onSave={handleSave} onClose={() => setIsEditModalOpen(false)} isSaving={isSaving} />
       </Modal>
@@ -403,7 +403,7 @@ const SubAgents = () => {
           setIsDetailModalOpen(false)
           setSelectedSubAgent(null)
         }}
-        title="Sub Agent Details"
+        title="Sub Partner Details"
         size="md"
       >
         {selectedSubAgent && (
@@ -485,7 +485,7 @@ const SubAgents = () => {
                 }}
                 className="w-full px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
               >
-                Edit Sub Agent
+                Edit Sub Partner
               </button>
             </div>
           </div>
@@ -497,7 +497,7 @@ const SubAgents = () => {
         isOpen={confirmDelete.isOpen}
         onClose={() => setConfirmDelete({ isOpen: false, subAgent: null })}
         onConfirm={handleDeleteConfirm}
-        title="Delete Sub Agent"
+        title="Delete Sub Partner"
         message={`Are you sure you want to delete sub-agent "${confirmDelete.subAgent?.name || 'this sub-agent'}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"

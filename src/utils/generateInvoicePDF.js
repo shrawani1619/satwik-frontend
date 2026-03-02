@@ -200,7 +200,7 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
 
   yPosition += 15;
 
-  // RECEIVER DETAILS (Agent/SubAgent/Franchise - Who Receives Payment) - Top Section
+  // RECEIVER DETAILS (Partner/Sub Partner/Franchise - Who Receives Payment) - Top Section
   addText('Receiver Details:', 20, yPosition, { fontSize: 12, fontStyle: 'bold' });
   yPosition += 7;
   addText(receiverName, 20, yPosition, { fontSize: 12, fontStyle: 'bold' });

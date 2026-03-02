@@ -9,7 +9,7 @@ const Help = () => {
     {
       id: 1,
       question: 'How do I create a new lead?',
-      answer: 'To create a new lead, click on the "Create Lead" button in the Leads Management page. Fill in all required fields including name, email, phone, loan amount, agent, and bank. Once submitted, the lead will be added to your system.',
+      answer: 'To create a new lead, click on the "Create Lead" button in the Leads Management page. Fill in all required fields including name, email, phone, loan amount, partner, and bank. Once submitted, the lead will be added to your system.',
     },
     {
       id: 2,
@@ -28,8 +28,8 @@ const Help = () => {
     },
     {
       id: 5,
-      question: 'How do I track agent performance?',
-      answer: 'Go to the Agents Management page to view detailed performance metrics for each agent including total leads, active leads, completed loans, and commission earned. You can also view individual agent details by clicking the eye icon.',
+      question: 'How do I track partner performance?',
+      answer: 'Go to the Partners Management page to view detailed performance metrics for each partner including total leads, active leads, completed loans, and commission earned. You can also view individual partner details by clicking the eye icon.',
     },
     {
       id: 6,
@@ -194,7 +194,7 @@ const Help = () => {
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Create Your First Lead</h3>
               <p className="text-sm text-gray-600 mt-1">
-                Start by creating a lead in the Leads Management section. Fill in all required information and assign it to an agent.
+                Start by creating a lead in the Leads Management section. Fill in all required information and assign it to a partner.
               </p>
             </div>
           </div>
@@ -203,9 +203,9 @@ const Help = () => {
               <span className="text-sm font-semibold text-primary-900">2</span>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">Manage Agents</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Manage Partners</h3>
               <p className="text-sm text-gray-600 mt-1">
-                Add agents in the Agents Management section. Agents can be assigned to leads and will track their performance automatically.
+                Add partners in the Partners Management section. Partners can be assigned to leads and will track their performance automatically.
               </p>
             </div>
           </div>

@@ -333,7 +333,7 @@ const Agents = () => {
         // Update existing agent
         const agentId = selectedAgent.id || selectedAgent._id
         if (!agentId) {
-          toast.error('Error', 'Agent ID is missing')
+          toast.error('Error', 'Partner ID is missing')
           return
         }
         // Map frontend fields to backend fields
@@ -352,7 +352,7 @@ const Agents = () => {
         await fetchLeads() // Refresh leads to update statistics
         await fetchInvoices() // Refresh invoices to update commission
         setIsEditModalOpen(false)
-        toast.success('Success', 'Agent updated successfully')
+        toast.success('Success', 'Partner updated successfully')
       } else {
         const { phone, ...rest } = formData
 
@@ -422,7 +422,7 @@ const Agents = () => {
         }
 
         setIsCreateModalOpen(false)
-        toast.success('Success', 'Agent created successfully')
+        toast.success('Success', 'Partner created successfully')
       }
       setSelectedAgent(null)
     } catch (error) {
@@ -441,14 +441,14 @@ const Agents = () => {
     const agent = confirmDelete.agent
     const agentId = agent.id || agent._id
     if (!agentId) {
-      toast.error('Error', 'Agent ID is missing')
+      toast.error('Error', 'Partner ID is missing')
       return
     }
 
     try {
       await api.agents.delete(agentId)
       await fetchAgents()
-      toast.success('Success', `Agent "${agent.name || 'this agent'}" deleted successfully`)
+      toast.success('Success', `Partner "${agent.name || 'this partner'}" deleted successfully`)
       setConfirmDelete({ isOpen: false, agent: null })
     } catch (error) {
       console.error('Error deleting agent:', error)
@@ -512,7 +512,7 @@ const Agents = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Agents Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Partners Management</h1>
           <p className="text-sm text-gray-600 mt-1">Manage agent profiles and performance</p>
         </div>
         <div className="flex items-center gap-2">
@@ -521,7 +521,7 @@ const Agents = () => {
             className="flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            <span>Create Agent</span>
+            <span>Create Partner</span>
           </button>
         </div>
       </div>
@@ -549,13 +549,13 @@ const Agents = () => {
       {/* Statistics Cards - Desktop Only */}
       <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Agents"
+          title="Total Partners"
           value={totalAgents}
           icon={UserCheck}
           color="blue"
         />
         <StatCard
-          title="Active Agents"
+          title="Active Partners"
           value={activeAgents}
           icon={TrendingUp}
           color="green"
@@ -650,7 +650,7 @@ const Agents = () => {
                   Clear all filters
                 </button>
                 <span className="text-sm text-gray-500">
-                  Showing {filteredAgents.length} of {agents.length} agents
+                  Showing {filteredAgents.length} of {agents.length} partners
                 </span>
               </div>
             )}
@@ -835,7 +835,7 @@ const Agents = () => {
           <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
             <p className="text-sm text-gray-600">
               Showing <span className="font-medium">{sortedAgents.length}</span> of{' '}
-              <span className="font-medium">{sortedAgents.length}</span> agents
+              <span className="font-medium">{sortedAgents.length}</span> partners
             </p>
           </div>
         )}
@@ -845,7 +845,7 @@ const Agents = () => {
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Create New Agent"
+        title="Create New Partner"
       >
         <AgentForm onSave={handleSave} onClose={() => setIsCreateModalOpen(false)} isSaving={isSaving} />
       </Modal>
@@ -857,7 +857,7 @@ const Agents = () => {
           setIsEditModalOpen(false)
           setSelectedAgent(null)
         }}
-        title="Edit Agent"
+        title="Edit Partner"
       >
         <AgentForm agent={selectedAgent} onSave={handleSave} onClose={() => setIsEditModalOpen(false)} isSaving={isSaving} />
       </Modal>
@@ -869,7 +869,7 @@ const Agents = () => {
           setIsDetailModalOpen(false)
           setSelectedAgent(null)
         }}
-        title="Agent Details"
+        title="Partner Details"
         size="md"
       >
         {selectedAgent && (
@@ -1020,7 +1020,7 @@ const Agents = () => {
                 }}
                 className="w-full px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
               >
-                Edit Agent
+                Edit Partner
               </button>
             </div>
 
@@ -1077,7 +1077,7 @@ const Agents = () => {
         isOpen={confirmDelete.isOpen}
         onClose={() => setConfirmDelete({ isOpen: false, agent: null })}
         onConfirm={handleDeleteConfirm}
-        title="Delete Agent"
+        title="Delete Partner"
         message={`Are you sure you want to delete agent "${confirmDelete.agent?.name || 'this agent'}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
