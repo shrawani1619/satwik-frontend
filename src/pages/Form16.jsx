@@ -22,6 +22,7 @@ import StatCard from '../components/StatCard'
 import ConfirmModal from '../components/ConfirmModal'
 import { toast } from '../services/toastService'
 import { exportToExcel } from '../utils/exportExcel'
+import { authService } from '../services/auth.service'
 
 const Form16 = () => {
   const [forms, setForms] = useState([])
@@ -35,6 +36,9 @@ const Form16 = () => {
   const [selectedForm, setSelectedForm] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, form: null })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
+
+  const userRole = authService.getUser()?.role
+  const isAdminOrAccountant = userRole === 'super_admin' || userRole === 'accounts_manager'
 
   useEffect(() => {
     fetchForms()
@@ -225,14 +229,16 @@ const Form16 = () => {
           </button>
         </div>
         
-        {/* Primary Action Button - Full Width on Mobile */}
-        <button
-          onClick={handleCreate}
-          className="w-full md:w-auto md:ml-auto flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Create Form 16</span>
-        </button>
+        {/* Primary Action Button - Full Width on Mobile (Admin/Accountant only) */}
+        {isAdminOrAccountant && (
+          <button
+            onClick={handleCreate}
+            className="w-full md:w-auto md:ml-auto flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Create Form 16</span>
+          </button>
+        )}
       </div>
 
       {/* Statistics Cards - Desktop Only */}
@@ -384,20 +390,24 @@ const Form16 = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleEdit(form)}
-                          className="text-gray-600 hover:text-gray-900 p-1"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(form)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isAdminOrAccountant && (
+                          <>
+                            <button
+                              onClick={() => handleEdit(form)}
+                              className="text-gray-600 hover:text-gray-900 p-1"
+                              title="Edit"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(form)}
+                              className="text-red-600 hover:text-red-900 p-1"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -453,20 +463,24 @@ const Form16 = () => {
                   >
                     <Eye className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => handleEdit(form)}
-                    className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
-                    title="Edit"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(form)}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {isAdminOrAccountant && (
+                    <>
+                      <button
+                        onClick={() => handleEdit(form)}
+                        className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(form)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
               
@@ -579,17 +593,19 @@ const Form16 = () => {
                 </div>
               </div>
             )}
-            <div className="pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setIsDetailModalOpen(false)
-                  handleEdit(selectedForm)
-                }}
-                className="w-full px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
-              >
-                Edit
-              </button>
-            </div>
+            {isAdminOrAccountant && (
+              <div className="pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setIsDetailModalOpen(false)
+                    handleEdit(selectedForm)
+                  }}
+                  className="w-full px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
+                >
+                  Edit
+                </button>
+              </div>
+            )}
           </div>
         )}
       </Modal>

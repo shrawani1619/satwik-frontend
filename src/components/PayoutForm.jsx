@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { Upload, X, File } from 'lucide-react'
 import { toast } from '../services/toastService'
 
-const PayoutForm = ({ payout = null, onSave, onClose, franchises = [], agents = [] }) => {
+const PayoutForm = ({ payout = null, onSave, onClose, leads = [] }) => {
   const [formData, setFormData] = useState({
+    leadId: '',
     agent: '',
     franchise: '',
     totalAmount: '',
@@ -26,6 +27,7 @@ const PayoutForm = ({ payout = null, onSave, onClose, franchises = [], agents = 
   useEffect(() => {
     if (payout) {
       setFormData({
+        leadId: payout.lead?._id || payout.lead?.id || '',
         agent: payout.agent?._id || payout.agent?.id || payout.agent || '',
         franchise: payout.franchise?._id || payout.franchise?.id || payout.franchise || '',
         totalAmount: payout.totalAmount || '',
@@ -47,6 +49,39 @@ const PayoutForm = ({ payout = null, onSave, onClose, franchises = [], agents = 
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleLeadChange = (e) => {
+    const leadId = e.target.value
+    const selectedLead = leads.find(
+      (lead) => String(lead._id || lead.id) === String(leadId)
+    )
+
+    let agentId = formData.agent
+    let franchiseId = formData.franchise
+
+    if (selectedLead) {
+      agentId =
+        selectedLead.agentId ||
+        selectedLead.agent?._id ||
+        selectedLead.agent?.id ||
+        selectedLead.agent ||
+        agentId
+
+      franchiseId =
+        selectedLead.franchiseId ||
+        selectedLead.franchise?._id ||
+        selectedLead.franchise?.id ||
+        selectedLead.franchise ||
+        franchiseId
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      leadId,
+      agent: agentId,
+      franchise: franchiseId,
+    }))
   }
 
   const handleBankDetailsChange = (e) => {
@@ -93,12 +128,12 @@ const PayoutForm = ({ payout = null, onSave, onClose, franchises = [], agents = 
     e.preventDefault()
 
     // Validation
-    if (!formData.agent) {
-      toast.error('Error', 'Agent is required')
+    if (!formData.leadId) {
+      toast.error('Error', 'Lead is required')
       return
     }
-    if (!formData.franchise) {
-      toast.error('Error', 'Franchise is required')
+    if (!formData.agent || !formData.franchise) {
+      toast.error('Error', 'Selected lead is missing agent or franchise')
       return
     }
     if (!formData.totalAmount || parseFloat(formData.totalAmount) <= 0) {
@@ -159,44 +194,27 @@ const PayoutForm = ({ payout = null, onSave, onClose, franchises = [], agents = 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        <div className="col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Agent <span className="text-red-500">*</span>
+            Lead <span className="text-red-500">*</span>
           </label>
           <select
-            name="agent"
-            value={formData.agent}
-            onChange={handleChange}
+            name="leadId"
+            value={formData.leadId}
+            onChange={handleLeadChange}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
-            <option value="">Select Agent</option>
-            {agents.map((agent) => (
-              <option key={agent._id || agent.id} value={agent._id || agent.id}>
-                {agent.name || agent.email}
+            <option value="">Select Lead</option>
+            {leads.map((lead) => (
+              <option key={lead._id || lead.id} value={lead._id || lead.id}>
+                {lead.customerName || lead.caseNumber || lead.loanAccountNo || (lead._id || lead.id)}
               </option>
             ))}
           </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Franchise <span className="text-red-500">*</span>
-          </label>
-          <select
-            name="franchise"
-            value={formData.franchise}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="">Select Franchise</option>
-            {franchises.map((franchise) => (
-              <option key={franchise._id || franchise.id} value={franchise._id || franchise.id}>
-                {franchise.name}
-              </option>
-            ))}
-          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            Agent and Franchise will be auto-filled from the selected lead.
+          </p>
         </div>
 
         <div>
@@ -255,10 +273,13 @@ const PayoutForm = ({ payout = null, onSave, onClose, franchises = [], agents = 
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="paid">Paid</option>
-            <option value="failed">Failed</option>
-            <option value="recovery">Recovery</option>
+            <option value="gst_pending">GST Pending</option>
+            <option value="gst_received">GST received</option>
+            <option value="payment_received">Payment received</option>
+            <option value="payment_pending">Payment Pending</option>
+            <option value="recovery_pending">Recovery Pending</option>
+            <option value="recovery_received">Recovery Received</option>
+            <option value="complete">Complete</option>
           </select>
         </div>
       </div>

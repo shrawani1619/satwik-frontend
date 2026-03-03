@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, FileText, Calendar, CheckCircle, ChevronDown, ChevronUp, FileDown, Download } from 'lucide-react'
+import { Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, FileText, File, Calendar, CheckCircle, ChevronDown, ChevronUp, FileDown, Download } from 'lucide-react'
 import IndianRupeeIcon from '../components/IndianRupeeIcon'
 import api from '../services/api'
 import StatusBadge from '../components/StatusBadge'
@@ -11,8 +11,9 @@ import { toast } from '../services/toastService'
 import { exportToExcel } from '../utils/exportExcel'
 import { canExportData } from '../utils/roleUtils'
 import { authService } from '../services/auth.service'
-import { downloadInvoicePDF } from '../utils/generateInvoicePDF'
+import { downloadInvoicePDF, loadLogoFromPublic } from '../utils/generateInvoicePDF'
 import { preloadRobotoFont, getCachedRobotoFont } from '../utils/robotoFont'
+import API_BASE_URL from '../config/api'
 
 const Invoices = () => {
   const userRole = authService.getUser()?.role || ''
@@ -39,6 +40,8 @@ const Invoices = () => {
   const [fullInvoiceDetails, setFullInvoiceDetails] = useState(null)
   const [companySettings, setCompanySettings] = useState(null)
   const [loadingInvoiceDetails, setLoadingInvoiceDetails] = useState(false)
+  const [detailModalAttachments, setDetailModalAttachments] = useState([])
+  const [loadingDetailAttachments, setLoadingDetailAttachments] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, invoice: null })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
 
@@ -221,7 +224,9 @@ const Invoices = () => {
     setSelectedInvoice(invoice)
     setIsDetailModalOpen(true)
     setLoadingInvoiceDetails(true)
-    
+    setDetailModalAttachments([])
+    setLoadingDetailAttachments(true)
+
     try {
       const invoiceId = invoice.id || invoice._id
       if (invoiceId) {
@@ -229,17 +234,28 @@ const Invoices = () => {
         const invoiceDetails = await api.invoices.getById(invoiceId)
         const invoiceData = invoiceDetails.data || invoiceDetails
         setFullInvoiceDetails(invoiceData)
-        
+
         // Fetch company settings for GST calculation
         const companySettingsResponse = await api.companySettings.get()
         const settings = companySettingsResponse.data || companySettingsResponse || {}
         setCompanySettings(settings)
+
+        // Fetch invoice attachments
+        try {
+          const docResponse = await api.documents.list('invoice', invoiceId)
+          const documents = docResponse.data || docResponse || []
+          setDetailModalAttachments(Array.isArray(documents) ? documents : [])
+        } catch (docErr) {
+          console.error('Error fetching invoice attachments:', docErr)
+          setDetailModalAttachments([])
+        }
       }
     } catch (error) {
       console.error('Error fetching invoice details:', error)
       toast.error('Error', 'Failed to load invoice details')
     } finally {
       setLoadingInvoiceDetails(false)
+      setLoadingDetailAttachments(false)
     }
   }
 
@@ -267,8 +283,12 @@ const Invoices = () => {
         robotoFontBase64 = getCachedRobotoFont()
       }
 
+      // Load logo from Public folder for PDF header
+      const logoData = await loadLogoFromPublic()
+      const settingsWithLogo = { ...companySettings, companyLogo: logoData || companySettings.companyLogo }
+
       // Download as PDF with Roboto font
-      downloadInvoicePDF(invoiceData, companySettings, null, robotoFontBase64)
+      downloadInvoicePDF(invoiceData, settingsWithLogo, null, robotoFontBase64)
       toast.success('Success', 'Invoice PDF downloaded successfully')
     } catch (error) {
       console.error('Error downloading invoice:', error)
@@ -813,6 +833,7 @@ const Invoices = () => {
           setSelectedInvoice(null)
           setFullInvoiceDetails(null)
           setCompanySettings(null)
+          setDetailModalAttachments([])
         }}
         title="Invoice Details"
         size="lg"
@@ -989,6 +1010,51 @@ const Invoices = () => {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Attachments */}
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Attachments</h3>
+                {loadingDetailAttachments ? (
+                  <p className="text-sm text-gray-500">Loading attachments...</p>
+                ) : detailModalAttachments.length > 0 ? (
+                  <div className="space-y-2">
+                    {detailModalAttachments.map((att) => {
+                      const docId = att.id || att._id
+                      const fileName = att.originalFileName || att.fileName || 'Attachment'
+                      const fileSize = att.fileSize ? ` (${(att.fileSize / 1024).toFixed(2)} KB)` : ''
+                      const handleViewAttachment = () => {
+                        if (!docId) return
+                        const base = API_BASE_URL.replace(/\/api$/, '')
+                        window.open(`${base}/api/documents/${docId}/download`, '_blank', 'noopener')
+                      }
+                      return (
+                        <div
+                          key={docId}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <File className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{fileName}{fileSize}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleViewAttachment}
+                            className="flex items-center gap-1.5 px-3 py-2 text-primary-700 hover:bg-primary-50 rounded-lg text-sm font-medium transition-colors"
+                            title="Open / Download"
+                          >
+                            <Download className="w-4 h-4" />
+                            View
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No attachments</p>
+                )}
               </div>
 
               {canEditInvoice && (

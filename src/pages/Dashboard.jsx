@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Users,
   FileText,
-  CheckCircle,
-  AlertCircle,
   FileCheck,
   Building2,
 } from 'lucide-react'
@@ -174,33 +172,6 @@ const Dashboard = () => {
     }
   }
 
-  const handleAcceptInvoice = async (invoiceId) => {
-    try {
-      await api.invoices.accept(invoiceId)
-      toast.success('Success', 'Invoice accepted successfully')
-      fetchDashboardData()
-    } catch (error) {
-      console.error('Error accepting invoice:', error)
-      toast.error('Error', error.message || 'Failed to accept invoice')
-    }
-  }
-
-  const handleEscalateInvoice = async (invoiceId) => {
-    const reason = prompt('Please provide escalation reason:')
-    if (!reason) return
-
-    const remarks = prompt('Additional remarks (optional):') || ''
-
-    try {
-      await api.invoices.escalate(invoiceId, { reason, remarks })
-      toast.success('Success', 'Invoice escalated successfully')
-      fetchDashboardData()
-    } catch (error) {
-      console.error('Error escalating invoice:', error)
-      toast.error('Error', error.message || 'Failed to escalate invoice')
-    }
-  }
-
   const { totalLeads, totalAgents, totalFranchises, totalRevenue, totalLoanAmount } = stats
   const isAgent = userRole === 'agent'
   const isAccountant = userRole === 'accounts_manager'
@@ -310,22 +281,6 @@ const Dashboard = () => {
                       <p className="text-xs text-gray-600 mt-1 break-words">
                         {invoice.lead?.loanAccountNo || 'N/A'} • ₹{(invoice.commissionAmount || invoice.netPayable || 0).toLocaleString()}
                       </p>
-                    </div>
-                    <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3 xs:gap-4">
-                      <button
-                        onClick={() => handleAcceptInvoice(invoice._id || invoice.id)}
-                        className="flex items-center justify-center gap-1.5 px-4 py-3 min-h-[44px] bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium w-full xs:w-auto"
-                      >
-                        <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                        <span>Accept</span>
-                      </button>
-                      <button
-                        onClick={() => handleEscalateInvoice(invoice._id || invoice.id)}
-                        className="flex items-center justify-center gap-1.5 px-4 py-3 min-h-[44px] bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium w-full xs:w-auto"
-                      >
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        <span>Escalate</span>
-                      </button>
                     </div>
                   </div>
                 ))}

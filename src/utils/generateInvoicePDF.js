@@ -1,51 +1,68 @@
 import jsPDF from 'jspdf';
 import { initializeRobotoFontSync } from './robotoFont.js';
 
+// Design constants (A4 landscape: 297 x 210 mm)
+const MARGIN = 15;
+const LINE_HEIGHT = 5;
+const LINE_HEIGHT_TIGHT = 4;
+const HEADER_ROW_HEIGHT = 8;
+const BODY_ROW_HEIGHT = 7;
+const TABLE_HEADER_BG = [245, 245, 245];
+const BORDER_COLOR = [220, 220, 220];
+const PRIMARY_COLOR = [41, 128, 185];
+const DARK_GRAY = [51, 51, 51];
+const LIGHT_GRAY = [128, 128, 128];
+
+/** Format amount in Indian currency: ₹ 10,00,000.00 (no letter spacing) */
+const formatINR = (amount) => {
+  const str = Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '₹ ' + str;
+};
+
+/** Display value; show '-' instead of 'N/A' */
+const na = (v) => (v == null || v === '' || String(v).trim().toUpperCase() === 'N/A' ? '-' : String(v));
+
 /**
  * Generate PDF invoice from invoice data
  * @param {Object} invoiceData - Invoice data with populated fields
- * @param {Object} companySettings - Company settings data
+ * @param {Object} companySettings - Company settings data (optional: companyLogo base64 for top-left logo)
  * @param {string} robotoFontBase64 - Optional base64 encoded Roboto font
  * @returns {jsPDF} PDF document
  */
 export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFontBase64 = null) => {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   
-  // Try to initialize Roboto font if base64 is provided
   if (robotoFontBase64) {
     initializeRobotoFontSync(doc, robotoFontBase64);
   }
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  let yPosition = 20;
+  const contentWidth = pageWidth - 2 * MARGIN;
+  let yPosition = MARGIN;
 
-  // Colors
-  const primaryColor = [41, 128, 185]; // Blue
-  const darkGray = [51, 51, 51];
-  const lightGray = [128, 128, 128];
-  // Check if Roboto font is available
   const fontFamily = doc.getFontList()['Roboto'] ? 'Roboto' : 'helvetica';
 
-  // Helper function to add text with styling
   const addText = (text, x, y, options = {}) => {
-    const {
-      fontSize = 10,
-      fontStyle = 'normal',
-      color = darkGray,
-      align = 'left',
-    } = options;
-
+    const { fontSize = 10, fontStyle = 'normal', color = DARK_GRAY, align = 'left' } = options;
     doc.setFontSize(fontSize);
     doc.setFont(fontFamily, fontStyle);
     doc.setTextColor(color[0], color[1], color[2]);
     doc.text(text, x, y, { align });
   };
 
-  // Helper function to add line
-  const addLine = (x1, y1, x2, y2, color = lightGray) => {
+  const addLine = (x1, y1, x2, y2, color = BORDER_COLOR) => {
     doc.setDrawColor(color[0], color[1], color[2]);
     doc.line(x1, y1, x2, y2);
+  };
+
+  const drawRect = (x, y, w, h, fill = null) => {
+    if (fill) {
+      doc.setFillColor(fill[0], fill[1], fill[2]);
+      doc.rect(x, y, w, h, 'F');
+    }
+    doc.setDrawColor(BORDER_COLOR[0], BORDER_COLOR[1], BORDER_COLOR[2]);
+    doc.rect(x, y, w, h);
   };
 
   // Determine receiver (Agent, SubAgent, or Franchise)
@@ -101,15 +118,19 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
   const receiverMobile = receiver?.mobile || 'N/A';
   const receiverEmail = receiver?.email || 'N/A';
 
-  // Company settings (who paid - YKC)
-  const companyName = companySettings.companyName || 'YKC FINANCIAL SERVICES';
+  // Company settings (who paid - YKC); normalize legacy name to new branding
+  const rawName = companySettings.companyName || 'YKC finserv PVT. LTD';
+  const companyName = (rawName && String(rawName).trim().toUpperCase() === 'YKC FINANCIAL SERVICES')
+    ? 'YKC finserv PVT. LTD'
+    : rawName;
   const companyAddress = companySettings.address || 'F-3, 3rd Floor, Gangadhar Chambers Co Op Society, Opposite Prabhat Press, Narayan Peth, Pune, Maharashtra 411030';
   const companyGST = companySettings.gstNo || '27AABCY2731J28';
   const companyPAN = companySettings.panNo || 'N/A';
   const companyEmail = companySettings.email || 'N/A';
   const companyMobile = companySettings.mobile || '9130011700';
+  const companyLogo = companySettings.companyLogo || companySettings.logoBase64 || null;
 
-  // Bank details from receiver
+  // Bank details from receiver (raw; use na() for display)
   const bankDetails = receiver?.bankDetails || {};
   const cpCode = bankDetails.cpCode || 'N/A';
   const bankName = bankDetails.bankName || 'N/A';
@@ -172,226 +193,211 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
   // Gross = Taxable + GST - TDS (always compute for correct PDF display)
   const grossValue = commission + gstAmount - tdsAmount;
 
-  // Header Section
-  addText('TAX INVOICE', pageWidth / 2, yPosition, {
-    fontSize: 20,
-    fontStyle: 'bold',
-    color: primaryColor,
-    align: 'center',
-  });
-
-  yPosition += 10;
-
-  // Invoice Number and Date (Right aligned)
   const invoiceNumber = invoiceData.invoiceNumber || 'N/A';
   const invoiceDate = invoiceData.invoiceDate
     ? new Date(invoiceData.invoiceDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-  addText(`Invoice No.: ${invoiceNumber}`, pageWidth - 20, yPosition, {
-    fontSize: 10,
-    align: 'right',
-  });
-  yPosition += 5;
-  addText(`Date: ${invoiceDate}`, pageWidth - 20, yPosition, {
-    fontSize: 10,
-    align: 'right',
-  });
-
-  yPosition += 15;
-
-  // RECEIVER DETAILS (Partner/Sub Partner/Franchise - Who Receives Payment) - Top Section
-  addText('Receiver Details:', 20, yPosition, { fontSize: 12, fontStyle: 'bold' });
-  yPosition += 7;
-  addText(receiverName, 20, yPosition, { fontSize: 12, fontStyle: 'bold' });
-  yPosition += 6;
-  
-  // Show address or N/A if not available
-  if (receiverAddress && receiverAddress !== 'N/A') {
-    const receiverAddressLines = doc.splitTextToSize(receiverAddress, pageWidth - 40);
-    receiverAddressLines.forEach((line) => {
-      addText(line, 20, yPosition, { fontSize: 9 });
-      yPosition += 5;
-    });
-  } else {
-    addText('N/A', 20, yPosition, { fontSize: 9 });
-    yPosition += 5;
-  }
-
-  yPosition += 3;
-  addText(`Mobile No.: ${receiverMobile}`, 20, yPosition, { fontSize: 9 });
-  yPosition += 5;
-  addText(`Email ID: ${receiverEmail}`, 20, yPosition, { fontSize: 9 });
-
-  yPosition += 10;
-  // Divider Line
-  addLine(20, yPosition, pageWidth - 20, yPosition);
-
-  yPosition += 10;
-
-  // PARTY DETAILS (YKC - Who Paid Payment)
-  addText('Party Details:', 20, yPosition, { fontSize: 12, fontStyle: 'bold' });
-  yPosition += 7;
-  addText(companyName, 20, yPosition, { fontSize: 12, fontStyle: 'bold' });
-  yPosition += 6;
-  
-  const companyAddressLines = doc.splitTextToSize(companyAddress, pageWidth - 40);
-  companyAddressLines.forEach((line) => {
-    addText(line, 20, yPosition, { fontSize: 9 });
-    yPosition += 5;
-  });
-
-  yPosition += 3;
-  addText(`GST No.: ${companyGST}`, 20, yPosition, { fontSize: 9 });
-  yPosition += 5;
-  addText(`Mobile No.: ${companyMobile}`, 20, yPosition, { fontSize: 9 });
-
-  yPosition += 15;
-
-  // Invoice Items Table Header
-  addLine(20, yPosition - 5, pageWidth - 20, yPosition - 5);
-  
-  // Table column positions (better spacing to prevent overflow)
-  // Page width is typically 210mm, leaving margins, we have ~170mm usable width
-  const col = {
-    sr: 20,
-    customer: 28,
-    bank: 55,
-    product: 70,
-  
-    amountRight: 115,
-    rateRight: 130,
-    taxableRight: 150,
-    // GST column will only be used for GST-registered users
-    gstRight: 165,
-    tdsRight: 180,
-    grossRight: pageWidth - 15,
-  };
-
-  // If the receiver is a "normal" user, we hide the GST column visually
-  // and shift the remaining numeric columns slightly for better spacing.
-  if (isNormalGSTUser) {
-    // Re-use the previous GST column position for TDS and keep Gross at the end
-    col.tdsRight = col.gstRight;
-    col.grossRight = pageWidth - 15;
-  }
-
-  // Table headers with proper spacing (shorter headers to fit)
-  addText('Sr', col.sr, yPosition, { fontSize: 8, fontStyle: 'bold' });
-  addText('Customer', col.customer, yPosition, { fontSize: 8, fontStyle: 'bold' });
-  addText('Bank', col.bank, yPosition, { fontSize: 8, fontStyle: 'bold' });
-  addText('Product', col.product, yPosition, { fontSize: 8, fontStyle: 'bold' });
-  addText('Amount', col.amountRight, yPosition, { fontSize: 8, fontStyle: 'bold' , align: 'right' });
-  addText('Rate%', col.rateRight, yPosition, { fontSize: 8, fontStyle: 'bold' , align: 'right'});
-  addText('Taxable', col.taxableRight, yPosition, { fontSize: 8, fontStyle: 'bold' , align: 'right' });
-  // Only show GST column in header for GST-registered users
-  if (!isNormalGSTUser) {
-    addText('GST', col.gstRight, yPosition, { fontSize: 8, fontStyle: 'bold' , align: 'right' });
-  }
-  addText('TDS', col.tdsRight, yPosition, { fontSize: 8, fontStyle: 'bold' , align: 'right'});
-  addText('Gross', col.grossRight, yPosition, { fontSize: 8, fontStyle: 'bold' , align: 'right'});
-
-  yPosition += 8;
-  addLine(20, yPosition - 5, pageWidth - 20, yPosition - 5);
-
-  // Invoice Item Row with proper column alignment
-  addText('1', col.sr, yPosition, { fontSize: 8 });
-  
-  // Customer Name (truncate if too long)
-  const customerNameText = doc.splitTextToSize(leadName, 25);
-  addText(customerNameText[0] || leadName.substring(0, 12),   col.customer, yPosition, { fontSize: 8});
-  
-  addText(bankName_lead.substring(0, 8), col.bank, yPosition, { fontSize: 8 });
-  addText(product.substring(0, 10), col.product, yPosition, { fontSize: 8 });
-  
-  // Amount - right aligned (clean string, no backticks)
-  const amountFormatted = amountDisbursed.toLocaleString('en-IN');
-  const amountText = '₹' + amountFormatted;
   doc.setCharSpace(0);
-  addText(amountText, col.amountRight , yPosition, { fontSize: 8, align: 'right' });
-  
-  // Rate - right aligned (clean string formatting)
-  const rateFormatted = Math.abs(payoutRate).toFixed(2);
-  const rateText = rateFormatted + '%';
-  addText(rateText, col.rateRight, yPosition, { fontSize: 8, align: 'right' });
-  
-  // Taxable Amount - right aligned (clean formatting)
-  const taxableValue = Math.max(0, commission);
-  const taxableFormatted = taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const taxableText = '₹' + taxableFormatted;
-  addText(taxableText, col.taxableRight , yPosition, { fontSize: 8, align: 'right' });
-  
-  // GST - right aligned (clean formatting) - only if not a "normal" user
-  if (!isNormalGSTUser) {
-    const gstValue = Math.max(0, gstAmount);
-    const gstFormatted = gstValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const gstText = '₹' + gstFormatted;
-    addText(gstText, col.gstRight, yPosition, { fontSize: 8, align: 'right' });
-  }
-  
-  // TDS - right aligned (clean formatting)
-  const tdsValue = Math.max(0, tdsAmount);
-  const tdsFormatted = tdsValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const tdsText = '₹' + tdsFormatted;
-  addText(tdsText, col.tdsRight , yPosition, { fontSize: 8, align: 'right' });
-  
-  // Gross Value - right aligned (clean formatting)
-  const grossFormatted = grossValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const grossText = '₹' + grossFormatted;
-  addText(grossText, col.grossRight , yPosition, { fontSize: 8, align: 'right' });
 
-  yPosition += 10;
-  addLine(20, yPosition - 5, pageWidth - 20, yPosition - 5);
-
-  // CP Code & Bank Details Section
-  yPosition += 10;
-  addText('CP Code & Bank Details:', 20, yPosition, {
-    fontSize: 11,
+  // ---------- HEADER (no logo) ----------
+  addText('TAX INVOICE', pageWidth / 2, yPosition + 8, {
+    fontSize: 24,
     fontStyle: 'bold',
+    color: PRIMARY_COLOR,
+    align: 'center',
   });
-  yPosition += 7;
-  if (cpCode !== 'N/A') {
-    addText(`CP Code: ${cpCode}`, 20, yPosition, { fontSize: 9 });
-    yPosition += 5;
-  }
-  addText(`Bank Name: ${bankName}`, 20, yPosition, { fontSize: 9 });
-  yPosition += 5;
-  addText(`Account No.: ${accountNumber}`, 20, yPosition, { fontSize: 9 });
-  yPosition += 5;
-  addText(`IFSC Code: ${ifsc}`, 20, yPosition, { fontSize: 9 });
-  yPosition += 5;
-  addText(`Branch: ${branch}`, 20, yPosition, { fontSize: 9 });
+  const boxW = 52;
+  const boxH = 22;
+  const boxX = pageWidth - MARGIN - boxW;
+  drawRect(boxX, yPosition, boxW, boxH);
+  addText('Invoice No.', boxX + 4, yPosition + 6, { fontSize: 9, fontStyle: 'bold' });
+  addText(invoiceNumber, boxX + 4, yPosition + 11, { fontSize: 10 });
+  addText('Date', boxX + 4, yPosition + 16, { fontSize: 9, fontStyle: 'bold' });
+  addText(invoiceDate, boxX + 4, yPosition + 21, { fontSize: 10 });
+  // Place divider clearly below the invoice box (no overlap)
+  const headerBottom = MARGIN + boxH;
+  yPosition = headerBottom + 8;
+  addLine(MARGIN, yPosition, pageWidth - MARGIN, yPosition, LIGHT_GRAY);
+  yPosition += 10;
 
-  // Additional Information
+  // ---------- TWO COLUMNS: Receiver (left) | Bill From (right) ----------
+  const col1X = MARGIN;
+  const col2X = pageWidth / 2 + 5;
+  const colWidth = pageWidth / 2 - MARGIN - 10;
+  const sectionTitleH = 6;
+  const lineH = LINE_HEIGHT;
+  const twoColStartY = yPosition;
+
+  addText('Receiver Details', col1X, yPosition, { fontSize: 11, fontStyle: 'bold' });
+  addLine(col1X, yPosition + 1, col1X + 45, yPosition + 1, DARK_GRAY);
+  yPosition += sectionTitleH + 2;
+  addText(receiverName, col1X, yPosition, { fontSize: 11, fontStyle: 'bold' });
+  yPosition += lineH;
+  const addrText = receiverAddress && receiverAddress !== 'N/A' ? receiverAddress : '-';
+  const addrLines = doc.splitTextToSize(addrText, colWidth);
+  addrLines.forEach((line) => { addText(line, col1X, yPosition, { fontSize: 9 }); yPosition += lineH; });
+  addText(`Mobile: ${receiverMobile}`, col1X, yPosition, { fontSize: 9 });
+  yPosition += lineH;
+  addText(`Email: ${receiverEmail}`, col1X, yPosition, { fontSize: 9 });
+  const leftColEndY = yPosition;
+  yPosition += lineH;
+
+  yPosition = twoColStartY;
+  addText('Bill From (Party Details)', col2X, yPosition, { fontSize: 11, fontStyle: 'bold' });
+  addLine(col2X, yPosition + 1, col2X + 70, yPosition + 1, DARK_GRAY);
+  yPosition += sectionTitleH + 2;
+  addText(companyName, col2X, yPosition, { fontSize: 11, fontStyle: 'bold' });
+  yPosition += lineH;
+  const compAddrLines = doc.splitTextToSize(companyAddress, colWidth);
+  compAddrLines.forEach((line) => { addText(line, col2X, yPosition, { fontSize: 9 }); yPosition += lineH; });
+  addText(`GST No.: ${companyGST}`, col2X, yPosition, { fontSize: 9 });
+  yPosition += lineH;
+  addText(`Mobile: ${companyMobile}`, col2X, yPosition, { fontSize: 9 });
+  yPosition = Math.max(leftColEndY, yPosition) + 8;
+
+  // ---------- TABLE ----------
+  const tableLeft = MARGIN;
+  const tableRight = pageWidth - MARGIN;
+  const tableW = tableRight - tableLeft;
+  const colKeys = ['sr', 'customer', 'bank', 'product', 'amount', 'payoutPct', 'grossPayout'];
+  if (!isNormalGSTUser) colKeys.push('gst');
+  colKeys.push('tds', 'netPayout');
+  const colW = {
+    sr: 10,
+    customer: 38,
+    bank: 34,
+    product: 26,
+    amount: 24,
+    payoutPct: 18,
+    grossPayout: 24,
+    gst: 22,
+    tds: 20,
+    netPayout: 26,
+  };
+  let xCur = tableLeft;
+  const colPos = [];
+  const headers = ['Sr no.', 'Customer name', 'Bank', 'Product Type', 'Amount', 'Payout%', 'Gross Payout'];
+  if (!isNormalGSTUser) headers.push('GST (18%)');
+  headers.push('TDS(2%)', 'Net Payout');
+  colKeys.forEach((k, i) => {
+    const w = i === colKeys.length - 1 ? tableRight - xCur : colW[k];
+    colPos.push({ key: k, x: xCur, w, right: ['amount', 'payoutPct', 'grossPayout', 'gst', 'tds', 'netPayout'].includes(k) });
+    xCur += w;
+  });
+
+  const headerY = yPosition;
+  doc.setFillColor(TABLE_HEADER_BG[0], TABLE_HEADER_BG[1], TABLE_HEADER_BG[2]);
+  doc.rect(tableLeft, headerY, tableW, HEADER_ROW_HEIGHT, 'F');
+  doc.setDrawColor(BORDER_COLOR[0], BORDER_COLOR[1], BORDER_COLOR[2]);
+  doc.rect(tableLeft, headerY, tableW, HEADER_ROW_HEIGHT);
+  colPos.forEach((c, i) => {
+    if (i > 0) doc.line(c.x, headerY, c.x, headerY + HEADER_ROW_HEIGHT);
+    const tx = c.x + (c.right ? c.w - 2 : 4);
+    addText(headers[i], tx, headerY + 5.5, { fontSize: 8, fontStyle: 'bold', align: c.right ? 'right' : 'left' });
+  });
+  yPosition += HEADER_ROW_HEIGHT;
+
+  const rowY = yPosition;
+  doc.rect(tableLeft, rowY, tableW, BODY_ROW_HEIGHT);
+  colPos.forEach((c, i) => {
+    if (i > 0) doc.line(c.x, rowY, c.x, rowY + BODY_ROW_HEIGHT);
+  });
+  const customerColW = colPos.find(p => p.key === 'customer')?.w ?? 34;
+  const customerNameText = doc.splitTextToSize(leadName, customerColW - 4);
+  const rowTexts = [
+    '1',
+    customerNameText[0] || leadName.substring(0, 20),
+    bankName_lead.substring(0, 14),
+    product.substring(0, 12),
+    formatINR(amountDisbursed),
+    Math.abs(payoutRate).toFixed(2) + '%',
+    formatINR(Math.max(0, commission)),
+  ];
+  if (!isNormalGSTUser) rowTexts.push(formatINR(Math.max(0, gstAmount)));
+  rowTexts.push(formatINR(Math.max(0, tdsAmount)), formatINR(grossValue));
+  colPos.forEach((c, i) => {
+    const tx = c.x + (c.right ? c.w - 2 : 4);
+    addText(rowTexts[i], tx, rowY + 4.5, { fontSize: 8, align: c.right ? 'right' : 'left' });
+  });
+  yPosition += BODY_ROW_HEIGHT;
+  addLine(tableLeft, yPosition, tableRight, yPosition);
+
+  // ---------- BANK DETAILS (two columns) ----------
+  yPosition += 10;
+  addText('Partner Code & Bank Details', MARGIN, yPosition, { fontSize: 11, fontStyle: 'bold' });
+  addLine(MARGIN, yPosition + 1, MARGIN + 80, yPosition + 1, DARK_GRAY);
+  yPosition += 8;
+  const bankColX = MARGIN;
+  addText(`Partner Code: ${na(cpCode)}`, bankColX, yPosition, { fontSize: 9 });
+  yPosition += LINE_HEIGHT;
+  addText(`Bank Name: ${na(bankName)}`, bankColX, yPosition, { fontSize: 9 });
+  yPosition += LINE_HEIGHT;
+  addText(`Account No.: ${na(accountNumber)}`, bankColX, yPosition, { fontSize: 9 });
+  yPosition += LINE_HEIGHT;
+  addText(`IFSC Code: ${na(ifsc)}`, bankColX, yPosition, { fontSize: 9 });
+  yPosition += LINE_HEIGHT;
+  addText(`Branch: ${na(branch)}`, bankColX, yPosition, { fontSize: 9 });
+  yPosition += 10;
+
   if (invoiceData.notes || invoiceData.remarks) {
-    yPosition += 10;
-    addText('Notes:', 20, yPosition, { fontSize: 10, fontStyle: 'bold' });
+    addText('Notes:', MARGIN, yPosition, { fontSize: 10, fontStyle: 'bold' });
     yPosition += 6;
-    const notes = invoiceData.notes || invoiceData.remarks || '';
-    const notesLines = doc.splitTextToSize(notes, pageWidth - 40);
-    notesLines.forEach((line) => {
-      addText(line, 20, yPosition, { fontSize: 9 });
-      yPosition += 5;
-    });
+    const notes = (invoiceData.notes || invoiceData.remarks || '').trim();
+    const notesLines = doc.splitTextToSize(notes, contentWidth);
+    notesLines.forEach((line) => { addText(line, MARGIN, yPosition, { fontSize: 9 }); yPosition += LINE_HEIGHT; });
+    yPosition += 4;
   }
 
-  // Signature Section
-  yPosition = pageHeight - 40;
-  addLine(20, yPosition, pageWidth - 20, yPosition);
-  yPosition += 10;
-  addText('Authorised Signatory', pageWidth - 20, yPosition, {
-    fontSize: 10,
-    fontStyle: 'bold',
-    align: 'right',
-  });
+  // ---------- FOOTER ----------
+  const footerY = pageHeight - 40;
+  yPosition = footerY;
+  addLine(MARGIN, yPosition, tableRight, yPosition, BORDER_COLOR);
+  // Small gap above the signature label
   yPosition += 6;
-  addText(receiverName, pageWidth - 20, yPosition, {
-    fontSize: 9,
-    align: 'right',
-  });
+  addText('Authorised Signatory', tableRight, yPosition, { fontSize: 10, fontStyle: 'bold', align: 'right' });
+  yPosition += 4;
+  addText(receiverName, tableRight, yPosition, { fontSize: 9, align: 'right' });
 
   return doc;
 };
+
+/**
+ * Load logo from Public folder as PNG data URL for use in PDF.
+ * Tries /logo.webp and /logo.png. Converts WebP to PNG for jsPDF compatibility.
+ */
+export async function loadLogoFromPublic() {
+  for (const path of ['/logo.webp', '/logo.png']) {
+    try {
+      const res = await fetch(path);
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      const dataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      if (blob.type === 'image/webp') {
+        const img = await new Promise((resolve, reject) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = reject;
+          i.src = dataUrl;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        return canvas.toDataURL('image/png');
+      }
+      return dataUrl;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
 
 /**
  * Download invoice as PDF

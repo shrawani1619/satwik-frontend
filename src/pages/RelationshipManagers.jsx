@@ -158,6 +158,7 @@ const RelationshipManagers = () => {
         (rm.address?.city && rm.address.city.toLowerCase().includes(searchLower)) ||
         (rm.address?.state && rm.address.state.toLowerCase().includes(searchLower)) ||
         (rm.ownerName && rm.ownerName.toLowerCase().includes(searchLower)) ||
+        (rm.regionalManager?.name && rm.regionalManager.name.toLowerCase().includes(searchLower)) ||
         (rm.email && rm.email.toLowerCase().includes(searchLower))
       const matchesStatus = statusFilter === 'all' || rm.status === statusFilter
       const matchesCity = !cityFilter || (rm.address?.city || '') === cityFilter
@@ -391,7 +392,7 @@ const RelationshipManagers = () => {
                 const stats = getRMStats(ownerId)
                 return {
                   Name: r.name || 'N/A',
-                  'Owner Name': r.ownerName || 'N/A',
+                  'Owner': r.regionalManager?.name || r.ownerName || 'N/A',
                   Email: r.email || 'N/A',
                   City: r.address?.city || 'N/A',
                   State: r.address?.state || 'N/A',
@@ -533,7 +534,7 @@ const RelationshipManagers = () => {
                     <tr key={id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{rm.name || 'N/A'}</div></td>
                       <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm text-gray-900">{rm.address?.city || rm.address?.state || 'N/A'}</div></td>
-                      <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm text-gray-900">{rm.ownerName || 'N/A'}</div></td>
+                      <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm text-gray-900">{rm.regionalManager?.name || rm.ownerName || 'N/A'}</div></td>
                       <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{stats.agents}</div></td>
                       <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-primary-900">{stats.leads}</div></td>
                       <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">₹{stats.revenue.toLocaleString()}</div></td>

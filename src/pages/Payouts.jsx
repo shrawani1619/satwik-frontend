@@ -21,6 +21,7 @@ const Payouts = () => {
   const canDelete = isAdmin || isAccountant
 
   const [payouts, setPayouts] = useState([])
+  const [leads, setLeads] = useState([])
   const [franchises, setFranchises] = useState([])
   const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -68,6 +69,7 @@ const Payouts = () => {
 
   useEffect(() => {
     fetchPayouts()
+    fetchLeads()
     fetchFranchises()
     fetchAgents()
   }, [])
@@ -100,6 +102,17 @@ const Payouts = () => {
       setPayouts([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchLeads = async () => {
+    try {
+      const res = await api.leads.getAll()
+      const data = res?.data || res || []
+      setLeads(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching leads:', error)
+      setLeads([])
     }
   }
 
@@ -157,6 +170,24 @@ const Payouts = () => {
     } catch (error) {
       console.error('Error deleting payout:', error)
       toast.error('Error', error.message || 'Failed to delete payout')
+    }
+  }
+
+  const [updatingStatusId, setUpdatingStatusId] = useState(null)
+
+  const handleStatusChange = async (payout, newStatus) => {
+    const id = payout._id || payout.id
+    if (!id) return
+    try {
+      setUpdatingStatusId(id)
+      await api.payouts.update(id, { status: newStatus })
+      await fetchPayouts()
+      toast.success('Success', 'Payout status updated')
+    } catch (error) {
+      console.error('Error updating payout status:', error)
+      toast.error('Error', error.message || 'Failed to update status')
+    } finally {
+      setUpdatingStatusId(null)
     }
   }
 
@@ -255,20 +286,28 @@ const Payouts = () => {
 
   // Calculate statistics
   const totalPayouts = payouts.length
-  const paidPayouts = payouts.filter((p) => p.status === 'paid').length
+  const completedStatuses = ['complete', 'payment_received']
+  const paidPayouts = payouts.filter((p) => completedStatuses.includes(p.status)).length
   const totalAmount = payouts.reduce((sum, p) => sum + (p.totalAmount || 0), 0)
   const paidAmount = payouts
-    .filter((p) => p.status === 'paid')
+    .filter((p) => completedStatuses.includes(p.status))
     .reduce((sum, p) => sum + (p.netPayable || 0), 0)
   const pendingAmount = totalAmount - paidAmount
 
+  const payoutStatusDropdownOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'gst_pending', label: 'GST Pending' },
+    { value: 'gst_received', label: 'GST received' },
+    { value: 'payment_received', label: 'Payment received' },
+    { value: 'payment_pending', label: 'Payment Pending' },
+    { value: 'recovery_pending', label: 'Recovery Pending' },
+    { value: 'recovery_received', label: 'Recovery Received' },
+    { value: 'complete', label: 'Complete' },
+  ]
+
   const statusOptions = [
     { value: 'all', label: 'All Status' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'processing', label: 'Processing' },
-    { value: 'paid', label: 'Paid' },
-    { value: 'failed', label: 'Failed' },
-    { value: 'recovery', label: 'Recovery' },
+    ...payoutStatusDropdownOptions,
   ]
 
   const hasActiveFilters =
@@ -574,7 +613,22 @@ const Payouts = () => {
                       </div>
                     </td>
                     <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <StatusBadge status={payout.status} />
+                      {canEdit ? (
+                        <select
+                          value={payout.status || 'pending'}
+                          onChange={(e) => handleStatusChange(payout, e.target.value)}
+                          disabled={updatingStatusId === (payout._id || payout.id)}
+                          className="block w-full min-w-[140px] max-w-[180px] px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {payoutStatusDropdownOptions.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <StatusBadge status={payout.status} />
+                      )}
                     </td>
                     <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap hidden sm:table-cell">
                       {payout.bankPaymentReceipt?.url ? (
@@ -637,8 +691,7 @@ const Payouts = () => {
         <PayoutForm
           onSave={handleSave}
           onClose={() => setIsCreateModalOpen(false)}
-          franchises={franchises}
-          agents={agents}
+          leads={leads}
         />
       </Modal>
 
@@ -658,8 +711,7 @@ const Payouts = () => {
             setIsEditModalOpen(false)
             setSelectedPayout(null)
           }}
-          franchises={franchises}
-          agents={agents}
+          leads={leads}
         />
       </Modal>
 

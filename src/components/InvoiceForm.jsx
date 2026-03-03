@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Upload, X, File, Download, Trash2 } from 'lucide-react'
 import api from '../services/api'
+import API_BASE_URL from '../config/api'
 import { toast } from '../services/toastService'
 
 // Generate invoice number
@@ -441,8 +442,13 @@ const InvoiceForm = ({ invoice, onSave, onClose, leads = [] }) => {
               {attachments.map((attachment) => {
                 const attachmentId = attachment.id || attachment._id
                 const fileName = attachment.originalFileName || attachment.fileName || 'Unknown'
-                const fileUrl = attachment.url || attachment.filePath
                 const fileSize = attachment.fileSize ? `${(attachment.fileSize / 1024).toFixed(2)} KB` : ''
+
+                const handleViewAttachment = () => {
+                  if (!attachmentId) return
+                  const base = API_BASE_URL.replace(/\/api$/, '')
+                  window.open(`${base}/api/documents/${attachmentId}/download`, '_blank', 'noopener')
+                }
 
                 return (
                   <div
@@ -459,17 +465,14 @@ const InvoiceForm = ({ invoice, onSave, onClose, leads = [] }) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {fileUrl && (
-                        <a
-                          href={fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Download"
-                        >
-                          <Download className="w-4 h-4" />
-                        </a>
-                      )}
+                      <button
+                        type="button"
+                        onClick={handleViewAttachment}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        title="View / Download"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteAttachment(attachmentId)}
