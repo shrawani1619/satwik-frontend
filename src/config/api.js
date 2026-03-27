@@ -8,7 +8,7 @@ if (import.meta.env.DEV) {
   console.log('🔧 API Configuration:', {
     baseURL: API_BASE_URL,
     envVar: import.meta.env.VITE_API_BASE_URL || 'Not set (using default)',
-    message: 'Make sure the backend server is running on port 5000'
+    message: 'Ensure backend is running (default local: http://localhost:8080)'
   });
 }
 

@@ -118,12 +118,12 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
   const receiverMobile = receiver?.mobile || 'N/A';
   const receiverEmail = receiver?.email || 'N/A';
 
-  // Company settings (who paid - YKC); normalize legacy name to new branding
-  const rawName = companySettings.companyName || 'YKC finserv PVT. LTD';
-  const companyName = (rawName && String(rawName).trim().toUpperCase() === 'YKC FINANCIAL SERVICES')
-    ? 'YKC finserv PVT. LTD'
-    : rawName;
-  const companyAddress = companySettings.address || 'F-3, 3rd Floor, Gangadhar Chambers Co Op Society, Opposite Prabhat Press, Narayan Peth, Pune, Maharashtra 411030';
+  // Company settings (Bill From); defaults match Satwik Network
+  const rawName = companySettings.companyName || 'Satwik Network';
+  const companyName = rawName;
+  const companyAddress =
+    companySettings.address ||
+    'F-3, 3rd Floor, Gangadhar Chambers Co Op Society, Opposite Prabhat Press, Narayan Peth, Pune, Maharashtra 411030';
   const companyGST = companySettings.gstNo || '27AABCY2731J28';
   const companyPAN = companySettings.panNo || 'N/A';
   const companyEmail = companySettings.email || 'N/A';
@@ -249,8 +249,13 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
   yPosition += sectionTitleH + 2;
   addText(companyName, col2X, yPosition, { fontSize: 11, fontStyle: 'bold' });
   yPosition += lineH;
-  const compAddrLines = doc.splitTextToSize(companyAddress, colWidth);
-  compAddrLines.forEach((line) => { addText(line, col2X, yPosition, { fontSize: 9 }); yPosition += lineH; });
+  const compAddrLines = companyAddress
+    .split(/\n/)
+    .flatMap((p) => doc.splitTextToSize(String(p).trim(), colWidth));
+  compAddrLines.forEach((line) => {
+    addText(line, col2X, yPosition, { fontSize: 9 });
+    yPosition += lineH;
+  });
   addText(`GST No.: ${companyGST}`, col2X, yPosition, { fontSize: 9 });
   yPosition += lineH;
   addText(`Mobile: ${companyMobile}`, col2X, yPosition, { fontSize: 9 });

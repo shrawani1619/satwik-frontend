@@ -2,6 +2,20 @@ import { useState, useEffect } from 'react'
 import { authService } from '../services/auth.service'
 import { api } from '../services/api'
 import Modal from './Modal'
+import {
+  formatMobileInput,
+  isValidMobileInput,
+  formatPanInput,
+  isValidPanInput,
+  formatAccountNumberInput,
+  isValidAccountNumberInput,
+  formatAadhaarInput,
+  isValidAadhaarInput,
+  formatIFSCInput,
+  isValidIFSCInput,
+  formatGstInput,
+  isValidGstInput,
+} from '../utils/fieldValidators'
 
 const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
   const isCreate = !franchise
@@ -82,9 +96,31 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
     if (isCreate) {
       if (!formData.email?.trim()) newErrors.email = 'Email is required for login'
       if (!formData.mobile?.trim()) newErrors.mobile = 'Mobile is required'
+      else if (!isValidMobileInput(formData.mobile)) newErrors.mobile = 'Invalid mobile number'
       if (!formData.password) newErrors.password = 'Password is required for owner login'
       else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters'
     }
+
+    // KYC / Bank validations
+    if (!formData.kyc?.pan?.trim()) newErrors['kyc.pan'] = 'PAN is required'
+    else if (!isValidPanInput(formData.kyc.pan)) newErrors['kyc.pan'] = 'Invalid PAN number'
+
+    if (formData.kyc?.aadhaar?.trim() && !isValidAadhaarInput(formData.kyc.aadhaar)) {
+      newErrors['kyc.aadhaar'] = 'Invalid Aadhaar number'
+    }
+
+    if (formData.franchiseType === 'GST') {
+      if (!formData.kyc?.gst?.trim()) newErrors['kyc.gst'] = 'GST is required'
+      else if (!isValidGstInput(formData.kyc.gst)) newErrors['kyc.gst'] = 'Invalid GST number'
+    }
+
+    if (!formData.bankDetails?.accountNumber?.trim()) newErrors['bankDetails.accountNumber'] = 'Account number is required'
+    else if (!isValidAccountNumberInput(formData.bankDetails.accountNumber)) newErrors['bankDetails.accountNumber'] = 'Invalid account number'
+
+    if (formData.bankDetails?.ifsc?.trim() && !isValidIFSCInput(formData.bankDetails.ifsc)) {
+      newErrors['bankDetails.ifsc'] = 'Invalid IFSC code'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -111,9 +147,10 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    const formattedValue = name === 'mobile' ? formatMobileInput(value) : value
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: formattedValue,
     }))
     // Clear error when user starts typing
     if (errors[name]) {
@@ -123,11 +160,75 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
 
   const handleNestedChange = (e) => {
     const { name, value } = e.target
+    let parent = null
+    let child = null
+    let formattedValue = value
+
     if (name.includes('.')) {
-      const [parent, child] = name.split('.')
-      setFormData((prev) => ({ ...prev, [parent]: { ...(prev[parent] || {}), [child]: value } }))
+      ;[parent, child] = name.split('.')
+      if (parent === 'kyc' && child === 'pan') formattedValue = formatPanInput(value)
+      if (parent === 'kyc' && child === 'aadhaar') formattedValue = formatAadhaarInput(value)
+      if (parent === 'kyc' && child === 'gst') formattedValue = formatGstInput(value)
+      if (parent === 'bankDetails' && child === 'accountNumber') {
+        formattedValue = formatAccountNumberInput(value)
+      }
+      if (parent === 'bankDetails' && child === 'ifsc') {
+        formattedValue = formatIFSCInput(value)
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        [parent]: { ...(prev[parent] || {}), [child]: formattedValue },
+      }))
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }))
+    }
+
+    // Live Account Number validation
+    if (parent === 'bankDetails' && child === 'accountNumber') {
+      if (!formattedValue) {
+        setErrors((prev) => ({ ...prev, 'bankDetails.accountNumber': '' }))
+      } else if (!isValidAccountNumberInput(formattedValue)) {
+        setErrors((prev) => ({ ...prev, 'bankDetails.accountNumber': 'Invalid account number' }))
+      } else {
+        setErrors((prev) => ({ ...prev, 'bankDetails.accountNumber': '' }))
+      }
+      return
+    }
+
+    // Live IFSC validation: show error only when user finishes 11 chars.
+    if (parent === 'bankDetails' && child === 'ifsc') {
+      if (formattedValue && formattedValue.length === 11 && !isValidIFSCInput(formattedValue)) {
+        setErrors((prev) => ({ ...prev, 'bankDetails.ifsc': 'Invalid IFSC code' }))
+      } else {
+        setErrors((prev) => ({ ...prev, 'bankDetails.ifsc': '' }))
+      }
+      return
+    }
+
+    // Live GST validation: show error only when GST length is 15.
+    if (parent === 'kyc' && child === 'gst') {
+      if (formattedValue && formattedValue.length === 15 && !isValidGstInput(formattedValue)) {
+        setErrors((prev) => ({ ...prev, 'kyc.gst': 'Invalid GST number' }))
+      } else {
+        setErrors((prev) => ({ ...prev, 'kyc.gst': '' }))
+      }
+      return
+    }
+
+    // Live PAN validation: show error only when PAN length is 10.
+    if (parent === 'kyc' && child === 'pan') {
+      if (formattedValue && formattedValue.length === 10 && !isValidPanInput(formattedValue)) {
+        setErrors((prev) => ({ ...prev, 'kyc.pan': 'Invalid PAN number' }))
+      } else {
+        setErrors((prev) => ({ ...prev, 'kyc.pan': '' }))
+      }
+      return
+    }
+
+    // For other nested fields, just clear the existing error when typing.
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }))
     }
   }
 
@@ -384,16 +485,40 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
       <div className={`grid grid-cols-1 gap-4 ${formData.franchiseType === 'GST' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">PAN</label>
-          <input type="text" name="kyc.pan" value={formData.kyc?.pan || ''} onChange={handleNestedChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="PAN number" />
+          <input
+            type="text"
+            name="kyc.pan"
+            value={formData.kyc?.pan || ''}
+            onChange={handleNestedChange}
+            className={`w-full px-3 py-2 border rounded-lg ${errors['kyc.pan'] ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="PAN number"
+          />
+          {errors['kyc.pan'] && <p className="mt-1 text-sm text-red-600">{errors['kyc.pan']}</p>}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Aadhaar</label>
-          <input type="text" name="kyc.aadhaar" value={formData.kyc?.aadhaar || ''} onChange={handleNestedChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Aadhaar number" />
+          <input
+            type="text"
+            name="kyc.aadhaar"
+            value={formData.kyc?.aadhaar || ''}
+            onChange={handleNestedChange}
+            className={`w-full px-3 py-2 border rounded-lg ${errors['kyc.aadhaar'] ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="Aadhaar number"
+          />
+          {errors['kyc.aadhaar'] && <p className="mt-1 text-sm text-red-600">{errors['kyc.aadhaar']}</p>}
         </div>
         {formData.franchiseType === 'GST' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">GST</label>
-            <input type="text" name="kyc.gst" value={formData.kyc?.gst || ''} onChange={handleNestedChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="GST number" />
+            <input
+              type="text"
+              name="kyc.gst"
+              value={formData.kyc?.gst || ''}
+              onChange={handleNestedChange}
+              className={`w-full px-3 py-2 border rounded-lg ${errors['kyc.gst'] ? 'border-red-500' : 'border-gray-300'}`}
+              placeholder="GST number"
+            />
+            {errors['kyc.gst'] && <p className="mt-1 text-sm text-red-600">{errors['kyc.gst']}</p>}
           </div>
         )}
       </div>
@@ -406,7 +531,17 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-          <input type="text" name="bankDetails.accountNumber" value={formData.bankDetails?.accountNumber || ''} onChange={handleNestedChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Account number" />
+          <input
+            type="text"
+            name="bankDetails.accountNumber"
+            value={formData.bankDetails?.accountNumber || ''}
+            onChange={handleNestedChange}
+            className={`w-full px-3 py-2 border rounded-lg ${errors['bankDetails.accountNumber'] ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="Account number"
+          />
+          {errors['bankDetails.accountNumber'] && (
+            <p className="mt-1 text-sm text-red-600">{errors['bankDetails.accountNumber']}</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
@@ -418,7 +553,17 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">IFSC</label>
-          <input type="text" name="bankDetails.ifsc" value={formData.bankDetails?.ifsc || ''} onChange={handleNestedChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="IFSC code" />
+          <input
+            type="text"
+            name="bankDetails.ifsc"
+            value={formData.bankDetails?.ifsc || ''}
+            onChange={handleNestedChange}
+            className={`w-full px-3 py-2 border rounded-lg ${errors['bankDetails.ifsc'] ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="IFSC code"
+          />
+          {errors['bankDetails.ifsc'] && (
+            <p className="mt-1 text-sm text-red-600">{errors['bankDetails.ifsc']}</p>
+          )}
         </div>
       </div>
 

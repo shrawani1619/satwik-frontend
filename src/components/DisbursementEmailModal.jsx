@@ -125,7 +125,7 @@ const DisbursementEmailModal = ({ isOpen, onClose, leadId }) => {
     const tableHTML = generateTableHTML(fields)
     // Extract reporting manager info from table fields or use emailData
     const reportingManagerField = fields.find(f => f.key === 'reportingManager')
-    let name = emailData?.lead?.reportingManager || 'YKC FINSERV'
+    let name = emailData?.lead?.reportingManager || 'Satwik Network'
     let mobile = emailData?.lead?.reportingManagerMobile || ''
     
     // If reporting manager field exists and has value, parse it
@@ -146,7 +146,7 @@ const DisbursementEmailModal = ({ isOpen, onClose, leadId }) => {
           <p style="margin-top: 20px;">Regards,<br>
           ${name}<br>
           ${mobile}<br>
-          YKC FINSERV PVT LTD</p>
+          Satwik Network</p>
         </body>
       </html>
     `

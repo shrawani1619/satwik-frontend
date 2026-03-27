@@ -1,4 +1,4 @@
-# YKC Financial CRM Frontend
+# Satwik Network CRM Frontend
 
 A modern financial loan management system built with React.js and Tailwind CSS.
 

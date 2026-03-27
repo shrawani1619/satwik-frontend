@@ -1030,7 +1030,7 @@ const AccountantLeads = () => {
                                                         >
                                                             <Edit size={16} />
                                                         </button>
-                                                        {(lead.status === 'disbursed' || lead.status === 'completed') && (
+                                                        {(lead.status === 'disbursed' || lead.status === 'partial_disbursed' || lead.status === 'completed') && (
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();

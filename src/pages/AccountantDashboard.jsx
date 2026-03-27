@@ -118,7 +118,7 @@ const AccountantDashboard = () => {
             {/* Sidebar Navigation */}
             <aside className="w-64 bg-white border-r border-slate-200 text-slate-600 flex flex-col fixed inset-y-0 left-0 z-50 transition-all duration-300">
                 <div className="p-2 flex items-center border-b border-slate-100">
-                    <img src="/logo.webp" alt="YKC Logo" className="w-48 h-20 object-contain" />
+                    <img src="/logo.webp" alt="Satwik Network Logo" className="w-48 h-20 object-contain" />
                 </div>
 
                 <nav className="flex-1 px-4 space-y-2 mt-6">

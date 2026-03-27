@@ -187,7 +187,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
+    <div className="space-y-4 w-full max-w-full overflow-x-hidden">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 text-sm text-gray-600">
         <span>Dashboard</span>
@@ -201,7 +201,7 @@ const Dashboard = () => {
       {isAgent ? (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title="Total Leads"
               value={stats.totalLeads || 0}
@@ -337,7 +337,7 @@ const Dashboard = () => {
       ) : (
         <>
           {/* Summary Cards - Admin/Relationship Manager */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard
               title="Total Leads"
               value={totalLeads}
@@ -372,12 +372,12 @@ const Dashboard = () => {
 
           {/* Loan Distribution & Lead Conversion Funnel - Admin, Regional Manager, Relationship Manager & Franchise Owner */}
           {(authService.getUser()?.role === 'super_admin' || authService.getUser()?.role === 'regional_manager' || authService.getUser()?.role === 'relationship_manager' || authService.getUser()?.role === 'franchise') && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Loan Distribution</h2>
                 {loanDistribution.length > 0 ? (
                   <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <div className="w-full sm:w-48 h-48 relative flex-shrink-0 [&_svg]:outline-none [&_*]:outline-none">
+                    <div className="w-full sm:w-44 h-44 relative flex-shrink-0 [&_svg]:outline-none [&_*]:outline-none">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart style={{ outline: 'none' }}>
                           <Pie
@@ -433,7 +433,7 @@ const Dashboard = () => {
                   <p className="text-sm text-gray-500 text-center py-8">No loan distribution data</p>
                 )}
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold text-gray-900">Lead Conversion Funnel</h2>
                   <div className="flex items-center gap-2">

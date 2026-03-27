@@ -7,6 +7,20 @@ import Modal from '../components/Modal'
 import ConfirmModal from '../components/ConfirmModal'
 import { toast } from '../services/toastService'
 import StatCard from '../components/StatCard'
+import {
+  formatMobileInput,
+  isValidMobileInput,
+  formatPanInput,
+  isValidPanInput,
+  formatAccountNumberInput,
+  isValidAccountNumberInput,
+  formatAadhaarInput,
+  isValidAadhaarInput,
+  formatIFSCInput,
+  isValidIFSCInput,
+  formatGstInput,
+  isValidGstInput,
+} from '../utils/fieldValidators'
 
 const SubAgents = () => {
   const [subAgents, setSubAgents] = useState([])
@@ -522,15 +536,73 @@ const SubAgentForm = ({ subAgent, onSave, onClose, isSaving = false }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    let parent = null
+    let child = null
+    let formattedValue = value
+
     if (name.includes('.')) {
-      const [parent, child] = name.split('.')
+      ;[parent, child] = name.split('.')
+      if (parent === 'kyc' && child === 'pan') formattedValue = formatPanInput(value)
+      if (parent === 'kyc' && child === 'aadhaar') formattedValue = formatAadhaarInput(value)
+      if (parent === 'kyc' && child === 'gst') formattedValue = formatGstInput(value)
+      if (parent === 'bankDetails' && child === 'accountNumber') {
+        formattedValue = formatAccountNumberInput(value)
+      }
+      if (parent === 'bankDetails' && child === 'ifsc') {
+        formattedValue = formatIFSCInput(value)
+      }
+
       setFormData((prev) => ({
         ...prev,
-        [parent]: { ...(prev[parent] || {}), [child]: value },
+        [parent]: { ...(prev[parent] || {}), [child]: formattedValue },
       }))
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }))
+      formattedValue = name === 'phone' ? formatMobileInput(value) : value
+      setFormData((prev) => ({ ...prev, [name]: formattedValue }))
     }
+
+    // Live Account Number validation
+    if (parent === 'bankDetails' && child === 'accountNumber') {
+      if (!formattedValue) {
+        setErrors((prev) => ({ ...prev, 'bankDetails.accountNumber': '' }))
+      } else if (!isValidAccountNumberInput(formattedValue)) {
+        setErrors((prev) => ({ ...prev, 'bankDetails.accountNumber': 'Invalid account number' }))
+      } else {
+        setErrors((prev) => ({ ...prev, 'bankDetails.accountNumber': '' }))
+      }
+      return
+    }
+
+    // Live IFSC validation: show error only when user finishes 11 chars.
+    if (parent === 'bankDetails' && child === 'ifsc') {
+      if (formattedValue && formattedValue.length === 11 && !isValidIFSCInput(formattedValue)) {
+        setErrors((prev) => ({ ...prev, 'bankDetails.ifsc': 'Invalid IFSC code' }))
+      } else {
+        setErrors((prev) => ({ ...prev, 'bankDetails.ifsc': '' }))
+      }
+      return
+    }
+
+    // Live GST validation: show error only when GST length is 15.
+    if (parent === 'kyc' && child === 'gst') {
+      if (formattedValue && formattedValue.length === 15 && !isValidGstInput(formattedValue)) {
+        setErrors((prev) => ({ ...prev, 'kyc.gst': 'Invalid GST number' }))
+      } else {
+        setErrors((prev) => ({ ...prev, 'kyc.gst': '' }))
+      }
+      return
+    }
+
+    // Live PAN validation: show error only when PAN length is 10.
+    if (parent === 'kyc' && child === 'pan') {
+      if (formattedValue && formattedValue.length === 10 && !isValidPanInput(formattedValue)) {
+        setErrors((prev) => ({ ...prev, 'kyc.pan': 'Invalid PAN number' }))
+      } else {
+        setErrors((prev) => ({ ...prev, 'kyc.pan': '' }))
+      }
+      return
+    }
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }))
     }
@@ -543,6 +615,25 @@ const SubAgentForm = ({ subAgent, onSave, onClose, isSaving = false }) => {
     if (!formData.email.trim()) newErrors.email = 'Email is required'
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid'
     if (!formData.phone.trim()) newErrors.phone = 'Phone is required'
+    else if (!isValidMobileInput(formData.phone)) newErrors.phone = 'Invalid phone number'
+
+    if (!formData.kyc?.pan?.trim()) newErrors['kyc.pan'] = 'PAN is required'
+    else if (!isValidPanInput(formData.kyc.pan)) newErrors['kyc.pan'] = 'Invalid PAN number'
+
+    if (formData.kyc?.aadhaar?.trim() && !isValidAadhaarInput(formData.kyc.aadhaar)) {
+      newErrors['kyc.aadhaar'] = 'Invalid Aadhaar number'
+    }
+
+    if (formData.kyc?.gst?.trim() && !isValidGstInput(formData.kyc.gst)) {
+      newErrors['kyc.gst'] = 'Invalid GST number'
+    }
+
+    if (!formData.bankDetails?.accountNumber?.trim()) newErrors['bankDetails.accountNumber'] = 'Account number is required'
+    else if (!isValidAccountNumberInput(formData.bankDetails.accountNumber)) newErrors['bankDetails.accountNumber'] = 'Invalid account number'
+
+    if (formData.bankDetails?.ifsc?.trim() && !isValidIFSCInput(formData.bankDetails.ifsc)) {
+      newErrors['bankDetails.ifsc'] = 'Invalid IFSC code'
+    }
 
 
     setErrors(newErrors)
@@ -622,15 +713,39 @@ const SubAgentForm = ({ subAgent, onSave, onClose, isSaving = false }) => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">PAN</label>
-          <input type="text" name="kyc.pan" value={formData.kyc?.pan || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="PAN number" />
+          <input
+            type="text"
+            name="kyc.pan"
+            value={formData.kyc?.pan || ''}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-lg ${errors['kyc.pan'] ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="PAN number"
+          />
+          {errors['kyc.pan'] && <p className="mt-1 text-sm text-red-600">{errors['kyc.pan']}</p>}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Aadhaar</label>
-          <input type="text" name="kyc.aadhaar" value={formData.kyc?.aadhaar || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Aadhaar number" />
+          <input
+            type="text"
+            name="kyc.aadhaar"
+            value={formData.kyc?.aadhaar || ''}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-lg ${errors['kyc.aadhaar'] ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="Aadhaar number"
+          />
+          {errors['kyc.aadhaar'] && <p className="mt-1 text-sm text-red-600">{errors['kyc.aadhaar']}</p>}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">GST</label>
-          <input type="text" name="kyc.gst" value={formData.kyc?.gst || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="GST number" />
+          <input
+            type="text"
+            name="kyc.gst"
+            value={formData.kyc?.gst || ''}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-lg ${errors['kyc.gst'] ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="GST number"
+          />
+          {errors['kyc.gst'] && <p className="mt-1 text-sm text-red-600">{errors['kyc.gst']}</p>}
         </div>
       </div>
 
@@ -642,7 +757,17 @@ const SubAgentForm = ({ subAgent, onSave, onClose, isSaving = false }) => {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-          <input type="text" name="bankDetails.accountNumber" value={formData.bankDetails?.accountNumber || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Account number" />
+          <input
+            type="text"
+            name="bankDetails.accountNumber"
+            value={formData.bankDetails?.accountNumber || ''}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-lg ${errors['bankDetails.accountNumber'] ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="Account number"
+          />
+          {errors['bankDetails.accountNumber'] && (
+            <p className="mt-1 text-sm text-red-600">{errors['bankDetails.accountNumber']}</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
@@ -654,7 +779,17 @@ const SubAgentForm = ({ subAgent, onSave, onClose, isSaving = false }) => {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">IFSC</label>
-          <input type="text" name="bankDetails.ifsc" value={formData.bankDetails?.ifsc || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="IFSC code" />
+          <input
+            type="text"
+            name="bankDetails.ifsc"
+            value={formData.bankDetails?.ifsc || ''}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-lg ${errors['bankDetails.ifsc'] ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="IFSC code"
+          />
+          {errors['bankDetails.ifsc'] && (
+            <p className="mt-1 text-sm text-red-600">{errors['bankDetails.ifsc']}</p>
+          )}
         </div>
       </div>
 

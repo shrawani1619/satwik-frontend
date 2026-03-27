@@ -92,12 +92,20 @@ const Sidebar = ({ onMinimizeChange, isMobile = false, isOpen = false, onClose }
         : `${isMinimized ? 'w-20' : 'w-64'}`
     }`}>
       {/* Minimize Toggle */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        {(!isMinimized || isMobile) && (
-          <div>
-            <img src={logo} alt="YKC CRM" className="object-contain max-h-10" />
-          </div>
-        )}
+      <div className="flex items-center justify-between px-3 py-3 border-b border-gray-200 h-16">
+        <div className={`flex items-center min-w-0 ${isMinimized && !isMobile ? 'justify-center w-full' : 'gap-2 flex-1'}`}>
+          <img
+            src={logo}
+            alt="Satwik Network CRM"
+            className={`${isMinimized && !isMobile ? 'h-9' : 'h-10'} w-auto object-contain flex-shrink-0`}
+          />
+          {(!isMinimized || isMobile) && (
+            <div className="min-w-0 leading-tight">
+              <div className="text-sm font-semibold text-gray-900 truncate">Satwik Network</div>
+              <div className="text-xs text-gray-500 truncate">CRM Dashboard</div>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {isMobile && (
             <button
@@ -108,22 +116,23 @@ const Sidebar = ({ onMinimizeChange, isMobile = false, isOpen = false, onClose }
             </button>
           )}
           {!isMobile && (
-        <button
-          onClick={handleToggle}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          {isMinimized ? (
-            <ChevronRight className="w-5 h-5 text-gray-600" />
-          ) : (
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          )}
-        </button>
+            <button
+              onClick={handleToggle}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+              aria-label={isMinimized ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isMinimized ? (
+                <ChevronRight className="w-5 h-5 text-gray-600" />
+              ) : (
+                <ChevronLeft className="w-5 h-5 text-gray-600" />
+              )}
+            </button>
           )}
         </div>
       </div>
 
       {/* Navigation */}
-      <div className="flex flex-col h-[calc(100vh-73px)] overflow-hidden p-4">
+      <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden p-3">
         <div className="flex-1 overflow-y-auto min-h-0">
           {!isMinimized && (
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
@@ -139,9 +148,12 @@ const Sidebar = ({ onMinimizeChange, isMobile = false, isOpen = false, onClose }
                   to={item.path}
                   onClick={handleLinkClick}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive
-                      ? 'bg-primary-50 text-primary-900 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
+                    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                      isMinimized && !isMobile ? 'justify-center' : ''
+                    } ${
+                      isActive
+                        ? 'bg-primary-50 text-primary-900 font-medium ring-1 ring-primary-100'
+                        : 'text-gray-700 hover:bg-gray-50'
                     }`
                   }
                   title={isMinimized && !isMobile ? item.label : ''}
@@ -170,9 +182,12 @@ const Sidebar = ({ onMinimizeChange, isMobile = false, isOpen = false, onClose }
                   to={item.path}
                   onClick={handleLinkClick}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive
-                      ? 'bg-primary-50 text-primary-900 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
+                    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                      isMinimized && !isMobile ? 'justify-center' : ''
+                    } ${
+                      isActive
+                        ? 'bg-primary-50 text-primary-900 font-medium ring-1 ring-primary-100'
+                        : 'text-gray-700 hover:bg-gray-50'
                     }`
                   }
                   title={isMinimized && !isMobile ? item.label : ''}
