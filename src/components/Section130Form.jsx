@@ -17,10 +17,10 @@ const VALID_TYPES = [
 
 const MAX_SIZE = 10 * 1024 * 1024 // 10MB
 
-const Form16Form = ({ form16, onSave, onClose }) => {
+const Section130Form = ({ form16, onSave, onClose }) => {
   const [formData, setFormData] = useState({
     attachmentName: '',
-    formType: 'form16',
+    formType: 'tds',
     user: '',
   })
 
@@ -45,7 +45,7 @@ const Form16Form = ({ form16, onSave, onClose }) => {
     if (form16) {
       setFormData({
         attachmentName: form16.attachmentName || '',
-        formType: form16.formType || 'form16',
+        formType: form16.formType || 'tds',
         user: form16.user?._id || form16.user || '',
       })
       // Fetch existing documents for this form16 record
@@ -54,7 +54,7 @@ const Form16Form = ({ form16, onSave, onClose }) => {
       const currentUser = authService.getUser()
       setFormData({
         attachmentName: '',
-        formType: 'form16',
+        formType: 'tds',
         user: isAdminOrAccountant ? '' : (currentUser?._id || currentUser?.id || ''),
       })
       setPendingFiles([])
@@ -75,7 +75,7 @@ const Form16Form = ({ form16, onSave, onClose }) => {
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true)
-      const roles = ['agent', 'franchise', 'relationship_manager', 'regional_manager']
+      const roles = ['agent', 'franchise', 'regional_manager']
       const allUsers = []
       for (const role of roles) {
         try {
@@ -137,7 +137,7 @@ const Form16Form = ({ form16, onSave, onClose }) => {
           fd.append('entityType', 'form16')
           fd.append('entityId', form16._id || form16.id)
           fd.append('documentType', 'form16_attachment')
-          fd.append('description', 'Form 16 / TDS attachment')
+          fd.append('description', 'Form 130 / TDS attachment')
           const resp = await api.documents.upload(fd)
           const doc = resp.data || resp
           setUploadedFiles(prev => [...prev, doc])
@@ -202,7 +202,7 @@ const Form16Form = ({ form16, onSave, onClose }) => {
           fd.append('entityType', 'form16')
           fd.append('entityId', newForm._id)
           fd.append('documentType', 'form16_attachment')
-          fd.append('description', 'Form 16 / TDS attachment')
+          fd.append('description', 'Form 130 / TDS attachment')
           const uploadResp = await api.documents.upload(fd)
           const doc = uploadResp.data || uploadResp
           if (i === 0) firstFileUrl = doc.url || doc.filePath || PLACEHOLDER_URL
@@ -220,7 +220,7 @@ const Form16Form = ({ form16, onSave, onClose }) => {
           status: 'active',
         })
 
-        toast.success('Success', `Form 16 created with ${pendingFiles.length} file(s)`)
+        toast.success('Success', `Form 130 created with ${pendingFiles.length} file(s)`)
         onClose()
       } else {
         // Update existing record metadata only (files already uploaded in handleFilesChange)
@@ -409,11 +409,13 @@ const Form16Form = ({ form16, onSave, onClose }) => {
               <Loader2 className="w-4 h-4 animate-spin" />
               {uploadProgress || 'Uploading...'}
             </span>
-          ) : form16 ? 'Update' : 'Create Form 16'}
+          ) : (
+            <span>Create Form 130 / TDS</span>
+          )}
         </button>
       </div>
     </form>
   )
 }
 
-export default Form16Form
+export default Section130Form

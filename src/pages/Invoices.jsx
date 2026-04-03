@@ -394,7 +394,6 @@ const Invoices = () => {
   const getAssociatedForInvoice = (inv) => {
     if (!inv) return 'N/A'
     if (inv.agent && typeof inv.agent === 'object') {
-      if (inv.agent.managedByModel === 'RelationshipManager') return inv.agent.managedBy?.name || 'N/A'
       if (inv.agent.managedByModel === 'Franchise') return inv.agent.managedBy?.name || inv.franchise?.name || 'N/A'
     }
     // try resolve agent id
@@ -402,7 +401,6 @@ const Invoices = () => {
     if (agentId) {
       const agentObj = agents.find(a => (a._id || a.id) === agentId || (a._id || a.id)?.toString() === agentId?.toString())
       if (agentObj) {
-        if (agentObj.managedByModel === 'RelationshipManager') return agentObj.managedBy?.name || 'N/A'
         if (agentObj.managedByModel === 'Franchise') return agentObj.managedBy?.name || inv.franchise?.name || 'N/A'
       }
     }
@@ -679,24 +677,20 @@ const Invoices = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          invoice.invoiceType === 'agent' 
-                            ? 'bg-blue-100 text-blue-700' 
+                          invoice.invoiceType === 'agent'
+                            ? 'bg-blue-100 text-blue-700'
                             : invoice.invoiceType === 'sub_agent'
                             ? 'bg-green-100 text-green-700'
-                            : invoice.invoiceType === 'franchise' && invoice.isReferralFranchise
-                            ? 'bg-orange-100 text-orange-700'
                             : invoice.invoiceType === 'franchise'
                             ? 'bg-purple-100 text-purple-700'
                             : 'bg-gray-100 text-gray-700'
                         }`}>
-                          {invoice.invoiceType === 'agent' 
-                            ? 'Partner' 
-                            : invoice.invoiceType === 'sub_agent' 
-                            ? 'Sub Partner' 
-                            : invoice.invoiceType === 'franchise' && invoice.isReferralFranchise
-                            ? 'Referral Franchise'
-                            : invoice.invoiceType === 'franchise' 
-                            ? 'Franchise' 
+                          {invoice.invoiceType === 'agent'
+                            ? 'Lead creator'
+                            : invoice.invoiceType === 'sub_agent'
+                            ? 'Sub Partner'
+                            : invoice.invoiceType === 'franchise'
+                            ? 'Franchise'
                             : 'N/A'}
                         </span>
                       </div>

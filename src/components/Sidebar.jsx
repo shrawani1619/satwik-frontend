@@ -18,7 +18,6 @@ import {
   History,
   Image,
   Receipt,
-  Ticket,
   UserCog,
   Percent,
   Wallet,
@@ -57,23 +56,17 @@ const Sidebar = ({ onMinimizeChange, isMobile = false, isOpen = false, onClose }
   }
 
   const allMenuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['super_admin', 'regional_manager', 'relationship_manager', 'franchise', 'agent', 'accounts_manager'] },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['super_admin', 'regional_manager', 'franchise', 'accounts_manager'] },
     { icon: MapPin, label: 'Regional Manager', path: '/regional-managers', roles: ['super_admin'] },
-    { icon: Store, label: 'Franchises', path: '/franchises', roles: ['super_admin', 'regional_manager', 'accounts_manager'] },
-    { icon: Users, label: 'Relationship Managers', path: '/relationship-managers', roles: ['super_admin', 'regional_manager', 'accounts_manager'] },
-    { icon: UserCheck, label: 'Partners', path: '/agents', roles: ['super_admin', 'regional_manager', 'relationship_manager', 'franchise', 'accounts_manager'] },
-    { icon: UserCog, label: 'Sub Partners', path: '/sub-agents', roles: ['agent'] },
-    { icon: BookUser, label: 'My Contacts', path: '/my-contacts', roles: ['agent'] },
-    { icon: Users, label: 'Leads', path: '/leads', roles: ['super_admin', 'regional_manager', 'relationship_manager', 'franchise', 'agent', 'accounts_manager'] },
-    { icon: Building2, label: 'Banks', path: '/banks', roles: ['super_admin', 'regional_manager', 'relationship_manager'] },
+    { icon: Store, label: 'Franchises', path: '/franchises', roles: ['super_admin', 'regional_manager'] },
+    { icon: Users, label: 'Leads', path: '/leads', roles: ['super_admin', 'regional_manager', 'franchise', 'accounts_manager'] },
+    { icon: Building2, label: 'Banks', path: '/banks', roles: ['super_admin', 'regional_manager'] },
     { icon: UserCheck, label: 'Accountant Managers', path: '/accountant-managers', roles: ['super_admin'] },
-    { icon: FileText, label: 'Invoices', path: '/invoices', roles: ['super_admin', 'regional_manager', 'relationship_manager', 'franchise', 'agent', 'accounts_manager'] },
+    { icon: FileText, label: 'Invoices', path: '/invoices', roles: ['super_admin', 'regional_manager', 'franchise', 'accounts_manager'] },
     { icon: Wallet, label: 'Payouts', path: '/payouts', roles: ['super_admin', 'accounts_manager'] },
-    { icon: FileText, label: 'Lead Forms', path: '/lead-forms', roles: ['super_admin', 'regional_manager'] },
     // Banners: visible to all roles, but only super_admin can edit/delete (enforced in UI + backend)
-    { icon: Image, label: 'Banners', path: '/banners', roles: ['super_admin', 'regional_manager', 'relationship_manager', 'franchise', 'agent', 'accounts_manager'] },
-    { icon: Receipt, label: 'Form 16 / TDS', path: '/form16', roles: ['super_admin', 'accounts_manager', 'agent', 'franchise', 'relationship_manager', 'regional_manager'] },
-    { icon: Ticket, label: 'Service Requests', path: '/tickets', roles: ['super_admin', 'regional_manager', 'relationship_manager', 'franchise', 'agent'] },
+    { icon: Image, label: 'Banners', path: '/banners', roles: ['super_admin', 'regional_manager', 'franchise', 'accounts_manager'] },
+    { icon: Receipt, label: 'Form 130 / TDS', path: '/form16', roles: ['super_admin', 'accounts_manager', 'franchise', 'regional_manager', 'agent'] },
     { icon: History, label: 'History', path: '/history', roles: ['super_admin', 'accounts_manager'] },
     { icon: Percent, label: 'Commission', path: '/franchise-commission', roles: ['super_admin', 'accounts_manager'] },
   ]

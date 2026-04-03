@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
+import PasswordField from './PasswordField'
 
-const RegionalManagerForm = ({ regionalManager, onSave, onClose }) => {
+const RegionalManagerForm = ({ regionalManager, onSave, onClose, isSaving = false }) => {
   const isEdit = !!regionalManager
   const [formData, setFormData] = useState({
     name: '',
@@ -101,21 +102,30 @@ const RegionalManagerForm = ({ regionalManager, onSave, onClose }) => {
           Password {!isEdit && <span className="text-red-500">*</span>}
           {isEdit && <span className="text-gray-500 text-xs">(leave blank to keep current password)</span>}
         </label>
-        <input
-          type="password"
+        <PasswordField
           name="password"
           value={formData.password}
           onChange={handleChange}
-          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
           placeholder={isEdit ? "Leave blank to keep current password" : "Min 6 characters"}
+          autoComplete={isEdit ? 'current-password' : 'new-password'}
+          error={!!errors.password}
         />
         {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
       </div>
       <div className="flex gap-3 pt-4">
-        <button type="submit" className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium">
-          {isEdit ? 'Update Regional Manager' : 'Create Regional Manager'}
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isSaving ? 'Saving…' : isEdit ? 'Update Regional Manager' : 'Create Regional Manager'}
         </button>
-        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={isSaving}
+          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium disabled:opacity-50"
+        >
           Cancel
         </button>
       </div>

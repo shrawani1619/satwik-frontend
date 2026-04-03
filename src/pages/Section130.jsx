@@ -19,16 +19,17 @@ import {
 } from 'lucide-react'
 import api from '../services/api'
 import Modal from '../components/Modal'
-import Form16Form from '../components/Form16Form'
+import Section130Form from '../components/Section130Form'
 import StatCard from '../components/StatCard'
 import ConfirmModal from '../components/ConfirmModal'
 import { toast } from '../services/toastService'
 import { exportToExcel } from '../utils/exportExcel'
 import { authService } from '../services/auth.service'
 
-const Form16 = () => {
+const Section130 = () => {
   const [forms, setForms] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(true)
@@ -51,11 +52,13 @@ const Form16 = () => {
   const fetchForms = async () => {
     try {
       setLoading(true)
+      setError(null)
       const response = await api.form16.getAll()
       const data = response.data || response || []
       setForms(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('Error fetching Form 16:', error)
+      console.error('Error fetching 130:', error)
+      setError(error.message || 'Failed to load Form 16 records')
       setForms([])
     } finally {
       setLoading(false)
@@ -214,6 +217,33 @@ const Form16 = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading Form 16 records...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {!loading && error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <p className="font-medium">Error loading data</p>
+          <p className="text-sm mt-1">{error}</p>
+          <button
+            onClick={fetchForms}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Main Content - Only show when not loading and no error */}
+      {!loading && !error && (
+        <>
       {/* Header */}
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
@@ -517,6 +547,7 @@ const Form16 = () => {
           fetchForms()
         }}
         title="Create Form 16"
+        size="xs"
       >
         <Form16Form
           onSave={handleSave}
@@ -535,6 +566,7 @@ const Form16 = () => {
           fetchForms()
         }}
         title="Edit Form 16"
+        size="xs"
       >
         <Form16Form
           form16={selectedForm}
@@ -651,9 +683,11 @@ const Form16 = () => {
         cancelText="Cancel"
         type="danger"
       />
+        </>
+      )}
     </div>
   )
 }
 
-export default Form16
+export default Section130
 

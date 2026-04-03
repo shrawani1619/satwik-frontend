@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
 import { Plus, Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Store, Users, TrendingUp, ChevronDown, ChevronUp, FileDown } from 'lucide-react'
 import IndianRupeeIcon from '../components/IndianRupeeIcon'
 import api from '../services/api'
+import { authService } from '../services/auth.service'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
 import FranchiseForm from '../components/FranchiseForm'
@@ -12,6 +14,8 @@ import { toast } from '../services/toastService'
 import { exportToExcel } from '../utils/exportExcel'
 
 const Franchises = () => {
+  const userRole = authService.getUser()?.role
+
   const [franchises, setFranchises] = useState([])
   const [leads, setLeads] = useState([])
   const [agents, setAgents] = useState([])
@@ -35,11 +39,12 @@ const Franchises = () => {
   const [isCreatingAgent, setIsCreatingAgent] = useState(false)
 
   useEffect(() => {
+    if (userRole === 'accounts_manager') return
     fetchFranchises()
     fetchLeads()
     fetchAgents()
     fetchInvoices()
-  }, [])
+  }, [userRole])
 
   const fetchFranchises = async () => {
     try {
@@ -75,8 +80,8 @@ const Franchises = () => {
 
   const fetchAgents = async () => {
     try {
-      // Fetch all agents with a high limit to get accurate statistics
-      const response = await api.agents.getAll({ limit: 10000, page: 1 })
+      // Fetch all agents using users endpoint with role filter
+      const response = await api.users.getAll({ role: 'agent', limit: 10000, page: 1 })
       const agentsData = response.data || response || []
       setAgents(Array.isArray(agentsData) ? agentsData : [])
     } catch (error) {
@@ -388,10 +393,11 @@ const Franchises = () => {
       } else {
         // Create new franchise
         const response = await api.franchises.create(formData)
-        const created = response.data || response
-        if (response.success || response.data) {
+        const created = response.data ?? response
+        const franchiseId =
+          created?._id || created?.id || response.data?._id || response.data?.id
+        if (response.success !== false && franchiseId) {
           // After creating, upload pending files (if any)
-          const franchiseId = created._id || created.id || created.data?._id
           try {
             const pendingFiles = files.pendingFiles || {}
             for (const [docType, fileObj] of Object.entries(pendingFiles)) {
@@ -480,6 +486,10 @@ const Franchises = () => {
     { value: 'inactive', label: 'Inactive' },
   ]
 
+  if (userRole === 'accounts_manager') {
+    return <Navigate to="/" replace />
+  }
+
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
@@ -515,6 +525,7 @@ const Franchises = () => {
             <span>Export to Excel</span>
           </button>
           <button
+            type="button"
             onClick={handleCreate}
             className="flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
           >

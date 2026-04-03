@@ -23,6 +23,7 @@ const AccountantManagers = () => {
     const [loadingDetails, setLoadingDetails] = useState(false)
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' })
     const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, am: null })
+    const [editLoading, setEditLoading] = useState(false)
 
     useEffect(() => {
         fetchAccountantManagers()
@@ -103,6 +104,26 @@ const AccountantManagers = () => {
             toast.error('Error', error.message || 'Failed to save accountant manager')
         } finally {
             setIsSaving(false)
+        }
+    }
+
+    const handleEdit = async (am) => {
+        const amId = am._id || am.id
+        if (!amId) {
+            toast.error('Error', 'Accountant Manager ID is missing')
+            return
+        }
+        try {
+            setEditLoading(true)
+            const response = await api.accountantManagers.getById(amId)
+            const full = response.data || response
+            setSelectedAM(full)
+            setIsEditModalOpen(true)
+        } catch (error) {
+            console.error('Error loading accountant manager for edit:', error)
+            toast.error('Error', error.message || 'Failed to load accountant manager')
+        } finally {
+            setEditLoading(false)
         }
     }
 
@@ -270,7 +291,15 @@ const AccountantManagers = () => {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button onClick={() => handleView(am)} className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-md transition-colors" title="View Details"><Eye className="w-4 h-4" /></button>
-                                                <button onClick={() => { setSelectedAM(am); setIsEditModalOpen(true) }} className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-gray-100 rounded-md transition-colors" title="Edit"><Edit className="w-4 h-4" /></button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleEdit(am)}
+                                                    disabled={editLoading}
+                                                    className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
+                                                    title="Edit"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
                                                 <button onClick={() => setConfirmDelete({ isOpen: true, am })} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-md transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                                             </div>
                                         </td>
@@ -315,6 +344,27 @@ const AccountantManagers = () => {
                                 <label className="text-xs font-semibold text-gray-500 uppercase">Mobile Number</label>
                                 <p className="text-sm text-gray-900">{selectedAM.mobile || selectedAM.phone || 'N/A'}</p>
                             </div>
+                        </div>
+
+                        <div className="pt-4 border-t">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3">Assigned regional managers</h4>
+                            {Array.isArray(selectedAM.assignedRegionalManagers) && selectedAM.assignedRegionalManagers.length > 0 ? (
+                                <ul className="space-y-2">
+                                    {selectedAM.assignedRegionalManagers.map((rm) => {
+                                        const id = rm?._id || rm?.id || rm
+                                        const label = typeof rm === 'object' && rm ? (rm.name || rm.email || String(id)) : String(rm)
+                                        const sub = typeof rm === 'object' && rm?.email ? rm.email : null
+                                        return (
+                                            <li key={String(id)} className="text-sm text-gray-900 border border-gray-100 rounded-lg px-3 py-2 bg-gray-50/80">
+                                                <span className="font-medium">{label}</span>
+                                                {sub && <span className="block text-xs text-gray-500">{sub}</span>}
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-500">None assigned — this accountant will not receive scoped leads until regional managers are assigned (use Edit).</p>
+                            )}
                         </div>
 
                         <div className="pt-4 border-t">
@@ -366,7 +416,16 @@ const AccountantManagers = () => {
                         </div>
 
                         <div className="pt-4 border-t flex justify-end gap-3">
-                            <button onClick={() => { setIsDetailModalOpen(false); setIsEditModalOpen(true) }} className="px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 text-sm font-medium transition-colors">Edit Personal Info</button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsDetailModalOpen(false)
+                                    handleEdit(selectedAM)
+                                }}
+                                className="px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 text-sm font-medium transition-colors"
+                            >
+                                Edit
+                            </button>
                             <button onClick={() => setIsDetailModalOpen(false)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors">Close</button>
                         </div>
                     </div>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { authService } from '../services/auth.service'
 import API_BASE_URL from '../config/api'
+import PasswordField from '../components/PasswordField'
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -211,7 +212,6 @@ const Signup = () => {
                   <option value="">Select a role</option>
                   <option value="agent">Partner</option>
                   <option value="franchise">Franchise Owner</option>
-                  <option value="relationship_manager">Relationship Manager</option>
                   <option value="accounts_manager">Accounts Manager</option>
                 </select>
               </div>
@@ -239,16 +239,15 @@ const Signup = () => {
                 <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
                   Password
                 </label>
-                <input
+                <PasswordField
                   id="password"
                   name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-gray-900 placeholder-gray-400"
-                  placeholder="Password (min 6 characters)"
                   value={formData.password}
                   onChange={handleChange}
+                  placeholder="Password (min 6 characters)"
+                  autoComplete="new-password"
+                  required
+                  size="lg"
                 />
               </div>
             </div>

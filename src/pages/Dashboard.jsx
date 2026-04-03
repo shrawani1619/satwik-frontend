@@ -61,9 +61,6 @@ const Dashboard = () => {
           case 'franchise':
             dashboardData = await api.dashboard.getFranchiseOwnerDashboard(params)
             break
-          case 'relationship_manager':
-            dashboardData = await api.dashboard.getStaffDashboard(params)
-            break
           case 'accounts_manager':
             dashboardData = await api.dashboard.getAccountsDashboard(params)
             break
@@ -74,7 +71,7 @@ const Dashboard = () => {
             break
         }
       } catch (roleError) {
-        if (userRole === 'relationship_manager' || userRole === 'accounts_manager' || userRole === 'agent' || userRole === 'franchise') {
+        if (userRole === 'accounts_manager' || userRole === 'agent' || userRole === 'franchise') {
           throw roleError
         }
         console.warn('Role-specific dashboard failed, trying admin:', roleError)
@@ -126,16 +123,15 @@ const Dashboard = () => {
       }
 
       // Set related lists (for admin, regional manager, and franchise owner dashboards)
-      if (userRole === 'super_admin' || userRole === 'regional_manager' || userRole === 'relationship_manager' || userRole === 'franchise') {
+      if (userRole === 'super_admin' || userRole === 'regional_manager' || userRole === 'franchise') {
         setRelatedLists({
           recentLeads: Array.isArray(data.recentLeads) ? data.recentLeads : [],
           recentAgents: Array.isArray(data.recentAgents) ? data.recentAgents : [],
           recentFranchises: Array.isArray(data.recentFranchises) ? data.recentFranchises : [],
           recentInvoices: Array.isArray(data.recentInvoices) ? data.recentInvoices : [],
-          relationshipManagers: Array.isArray(data.relationshipManagers) ? data.relationshipManagers : [],
         })
       }
-      if (userRole === 'super_admin' || userRole === 'regional_manager' || userRole === 'relationship_manager' || userRole === 'franchise') {
+      if (userRole === 'super_admin' || userRole === 'regional_manager' || userRole === 'franchise') {
         setLoanDistribution(Array.isArray(data.loanDistribution) ? data.loanDistribution : [])
         setLeadConversionFunnel(Array.isArray(data.leadConversionFunnel) ? data.leadConversionFunnel : [])
         setSelectedLoanSegmentIndex(null)
@@ -176,7 +172,7 @@ const Dashboard = () => {
   const isAgent = userRole === 'agent'
   const isAccountant = userRole === 'accounts_manager'
 
-  // For admin / regional / RM / franchise dashboards: aggregate total loan amount by type
+  // For admin / regional / franchise dashboards: aggregate total loan amount by type
   const totalLoanAmountForChart = Array.isArray(loanDistribution)
     ? loanDistribution.reduce((sum, item) => sum + (item.totalAmount || 0), 0)
     : 0
@@ -336,7 +332,7 @@ const Dashboard = () => {
         </>
       ) : (
         <>
-          {/* Summary Cards - Admin/Relationship Manager */}
+          {/* Summary Cards - Admin / Regional / Franchise */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard
               title="Total Leads"
@@ -370,8 +366,8 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* Loan Distribution & Lead Conversion Funnel - Admin, Regional Manager, Relationship Manager & Franchise Owner */}
-          {(authService.getUser()?.role === 'super_admin' || authService.getUser()?.role === 'regional_manager' || authService.getUser()?.role === 'relationship_manager' || authService.getUser()?.role === 'franchise') && (
+          {/* Loan Distribution & Lead Conversion Funnel - Admin, Regional Manager & Franchise Owner */}
+          {(authService.getUser()?.role === 'super_admin' || authService.getUser()?.role === 'regional_manager' || authService.getUser()?.role === 'franchise') && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Loan Distribution</h2>

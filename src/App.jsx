@@ -8,25 +8,20 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Leads from './pages/Leads'
-import Agents from './pages/Agents'
 import Staff from './pages/Staff'
 import Banks from './pages/Banks'
 import Franchises from './pages/Franchises'
-import RelationshipManagers from './pages/RelationshipManagers'
 import Invoices from './pages/Invoices'
 import Settings from './pages/Settings'
 import Help from './pages/Help'
-import RegionalManagers from './pages/RegionalManagers'
-import LeadForms from './pages/LeadForms'
 import AccountantManagers from './pages/AccountantManagers'
 import History from './pages/History'
 import Banners from './pages/Banners'
-import Form16 from './pages/Form16'
-import Tickets from './pages/Tickets'
-import SubAgents from './pages/SubAgents'
+import Form130 from './pages/Form130'
 import FranchiseCommission from './pages/FranchiseCommission'
 import Payouts from './pages/Payouts'
 import MyContacts from './pages/MyContacts'
+import RegionalManagers from './pages/RegionalManagers'
 
 function App() {
   const [notifications, setNotifications] = useState([])
@@ -63,18 +58,13 @@ function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="leads" element={<Leads />} />
-          <Route path="agents" element={<Agents />} />
           <Route path="staff" element={<Staff />} />
           <Route path="banks" element={<Banks />} />
           <Route path="franchises" element={<Franchises />} />
-          <Route path="relationship-managers" element={<RelationshipManagers />} />
           <Route path="regional-managers" element={<RegionalManagers />} />
           <Route path="accountant-managers" element={<AccountantManagers />} />
-          <Route path="lead-forms" element={<LeadForms />} />
           <Route path="banners" element={<Banners />} />
-          <Route path="form16" element={<Form16 />} />
-          <Route path="tickets" element={<Tickets />} />
-          <Route path="sub-agents" element={<SubAgents />} />
+          <Route path="form16" element={<Form130 />} />
           <Route path="my-contacts" element={<MyContacts />} />
           <Route path="history" element={<History />} />
           <Route path="franchise-commission" element={<FranchiseCommission />} />

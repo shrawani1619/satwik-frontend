@@ -351,12 +351,12 @@ const Settings = () => {
             </div>
           )}
 
-          {/* Mapped RM / Franchise account details */}
+          {/* Mapped franchise account details */}
           {user.role === 'agent' && user.managedBy && (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {user.managedByModel === 'RelationshipManager' ? 'Mapped RM' : 'Mapped Franchise'}
+                  Mapped Franchise
                 </label>
                 <p className="text-sm text-gray-900 py-2 font-medium">
                   {typeof user.managedBy === 'object' && user.managedBy?.name
@@ -367,7 +367,7 @@ const Settings = () => {
               {typeof user.managedBy === 'object' && user.managedBy?.email && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {user.managedByModel === 'RelationshipManager' ? 'RM Email' : 'Franchise Email'}
+                    Franchise Email
                   </label>
                   <p className="text-sm text-gray-900 py-2">{user.managedBy.email}</p>
                 </div>
@@ -375,7 +375,7 @@ const Settings = () => {
               {typeof user.managedBy === 'object' && user.managedBy?.phone && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {user.managedByModel === 'RelationshipManager' ? 'RM Phone' : 'Franchise Phone'}
+                    Franchise Phone
                   </label>
                   <p className="text-sm text-gray-900 py-2">{user.managedBy.phone}</p>
                 </div>

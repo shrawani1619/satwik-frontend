@@ -686,24 +686,20 @@ const AccountantInvoices = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          invoice.invoiceType === 'agent' 
-                            ? 'bg-blue-100 text-blue-700' 
+                          invoice.invoiceType === 'agent'
+                            ? 'bg-blue-100 text-blue-700'
                             : invoice.invoiceType === 'sub_agent'
                             ? 'bg-green-100 text-green-700'
-                            : invoice.invoiceType === 'franchise' && invoice.isReferralFranchise
-                            ? 'bg-orange-100 text-orange-700'
                             : invoice.invoiceType === 'franchise'
                             ? 'bg-purple-100 text-purple-700'
                             : 'bg-gray-100 text-gray-700'
                         }`}>
-                          {invoice.invoiceType === 'agent' 
-                            ? 'Partner' 
-                            : invoice.invoiceType === 'sub_agent' 
-                            ? 'Sub Partner' 
-                            : invoice.invoiceType === 'franchise' && invoice.isReferralFranchise
-                            ? 'Referral Franchise'
-                            : invoice.invoiceType === 'franchise' 
-                            ? 'Franchise' 
+                          {invoice.invoiceType === 'agent'
+                            ? 'Lead creator'
+                            : invoice.invoiceType === 'sub_agent'
+                            ? 'Sub Partner'
+                            : invoice.invoiceType === 'franchise'
+                            ? 'Franchise'
                             : 'N/A'}
                         </span>
                       </div>

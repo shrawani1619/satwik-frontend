@@ -36,7 +36,6 @@ const Header = ({ onMenuClick, isMobile = false }) => {
       'agent': 'Partner Dashboard',
       'franchise': 'Franchisee Dashboard',
       'regional_manager': 'Regional Manager Dashboard',
-      'relationship_manager': 'Relationship Manager Dashboard',
       'accounts_manager': 'Accounts Manager Dashboard',
       'super_admin': 'Admin Dashboard',
     }

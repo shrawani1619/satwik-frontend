@@ -89,7 +89,6 @@ export default function DashboardFilters({ filters = {}, onApply, onReset, role 
   const [banks, setBanks] = useState([])
   const [loadingOptions, setLoadingOptions] = useState(false)
 
-  // Relationship managers should not see franchise list (server disallows it)
   const showFranchise = role === 'super_admin' || role === 'regional_manager' || role === 'accounts_manager'
   const showAgent = showFranchise || role === 'franchise'
   const showBank = true

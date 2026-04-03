@@ -258,46 +258,6 @@ export const api = {
     }),
   },
 
-  // Agents endpoints
-  agents: {
-    getAll: (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return apiRequest(`/agents${queryString ? `?${queryString}` : ''}`);
-    },
-    getById: (id) => apiRequest(`/agents/${id}`),
-    create: (data) => apiRequest('/agents', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-    update: (id, data) => apiRequest(`/agents/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-    updateStatus: (id, status) => apiRequest(`/agents/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    }),
-    delete: (id) => apiRequest(`/agents/${id}`, { method: 'DELETE' }),
-  },
-
-  // Sub-Agents endpoints (for agents)
-  subAgents: {
-    getAll: (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return apiRequest(`/agents/sub-agents${queryString ? `?${queryString}` : ''}`);
-    },
-    getById: (id) => apiRequest(`/agents/sub-agents/${id}`),
-    create: (data) => apiRequest('/agents/sub-agents', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-    update: (id, data) => apiRequest(`/agents/sub-agents/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-    delete: (id) => apiRequest(`/agents/sub-agents/${id}`, { method: 'DELETE' }),
-  },
-
   // Staff endpoints
   staff: {
     getAll: (params = {}) => {
@@ -407,30 +367,6 @@ export const api = {
       });
     },
     delete: (id) => apiRequest(`/payouts/${id}`, { method: 'DELETE' }),
-  },
-
-  // Relationship Managers endpoints
-  relationshipManagers: {
-    getAll: (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return apiRequest(`/relationship-managers${queryString ? `?${queryString}` : ''}`);
-    },
-    getById: (id) => apiRequest(`/relationship-managers/${id}`),
-    create: (data) => apiRequest('/relationship-managers', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-    update: (id, data) => apiRequest(`/relationship-managers/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-    updateStatus: (id, status) => apiRequest(`/relationship-managers/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    }),
-    delete: (id) => apiRequest(`/relationship-managers/${id}`, { method: 'DELETE' }),
-    getFranchises: (id) => apiRequest(`/relationship-managers/${id}/franchises`),
-    getPerformance: (id) => apiRequest(`/relationship-managers/${id}/performance`),
   },
 
   // Franchises endpoints
@@ -655,29 +591,11 @@ export const api = {
     delete: (id) => apiRequest(`/banners/${id}`, { method: 'DELETE' }),
   },
 
-  // Lead Forms (dynamic forms per bank)
-  leadForms: {
-    getByBank: (bankId) => apiRequest(`/lead-forms/bank/${bankId}`),
-    getNewLeadForm: () => apiRequest('/lead-forms/new-lead'),
-    create: (data) => apiRequest('/lead-forms', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id, data) => apiRequest(`/lead-forms/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    list: () => apiRequest('/lead-forms'),
-  },
-  // Field definitions (canonical keys) used by Lead Form builder
-  fieldDefs: {
-    list: () => apiRequest('/field-defs'),
-    create: (data) => apiRequest('/field-defs', { method: 'POST', body: JSON.stringify(data) }),
-  },
-
   // Dashboard endpoints
   dashboard: {
     getAgentDashboard: (params = {}) => {
       const queryString = new URLSearchParams(params).toString();
       return apiRequest(`/dashboard/agent${queryString ? `?${queryString}` : ''}`);
-    },
-    getStaffDashboard: (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return apiRequest(`/dashboard/staff${queryString ? `?${queryString}` : ''}`);
     },
     getAccountsDashboard: (params = {}) => {
       const queryString = new URLSearchParams(params).toString();
@@ -765,28 +683,6 @@ export const api = {
       return apiRequest(`/history${queryString ? `?${queryString}` : ''}`);
     },
     getStats: () => apiRequest('/history/stats'),
-  },
-
-  // Tickets endpoints
-  tickets: {
-    getAll: (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return apiRequest(`/tickets${queryString ? `?${queryString}` : ''}`);
-    },
-    getById: (id) => apiRequest(`/tickets/${id}`),
-    create: (data) => apiRequest('/tickets', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-    update: (id, data) => apiRequest(`/tickets/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-    resolve: (id, data = {}) => apiRequest(`/tickets/${id}/resolve`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-    getCategories: () => apiRequest('/tickets/categories'),
   },
 
   // Notifications endpoints

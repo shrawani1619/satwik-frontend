@@ -52,7 +52,6 @@ const AccountantOverview = () => {
         disbursedCases = 0,
         activeAgents = 0,
         totalFranchises = 0,
-        activeRelationshipManagers = 0,
         totalInvoices = 0,
         totalRevenue = 0,
         totalLoanAmount = 0,

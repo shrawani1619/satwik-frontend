@@ -45,14 +45,6 @@ export const isRegionalManager = () => {
 };
 
 /**
- * Check if current user is a Relationship Manager
- * @returns {boolean} True if user is a Relationship Manager
- */
-export const isRelationshipManager = () => {
-  return hasRole('relationship_manager');
-};
-
-/**
  * Check if current user is a Franchise Owner
  * @returns {boolean} True if user is a Franchise Owner
  */

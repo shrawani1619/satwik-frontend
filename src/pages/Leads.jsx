@@ -4,9 +4,9 @@ import api from '../services/api'
 import { authService } from '../services/auth.service'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
-import LeadForm from '../components/LeadForm'
 import ConfirmModal from '../components/ConfirmModal'
 import DisbursementEmailModal from '../components/DisbursementEmailModal'
+import LeadForm from '../components/LeadForm'
 import { toast } from '../services/toastService'
 import { exportToExcel } from '../utils/exportExcel'
 import { canExportData } from '../utils/roleUtils'
@@ -18,7 +18,7 @@ const Leads = () => {
   const userRole = authService.getUser()?.role || 'super_admin'
   const isAgent = userRole === 'agent'
   const isAccountant = userRole === 'accounts_manager'
-  const canViewHistory = ['super_admin', 'relationship_manager', 'franchise', 'agent'].includes(userRole)
+  const canViewHistory = ['super_admin', 'franchise', 'agent'].includes(userRole)
   const canEdit = !isAgent
   const canCreate = true // Agents can create leads
   const canSendDisbursementEmail = userRole !== 'agent' // All roles except agent can send
@@ -76,7 +76,7 @@ const Leads = () => {
         // Remove leadType, contact, caseNumber, verificationStatus and sanctionedAmount columns if they exist in saved config
         const filtered = parsed.filter(col => col.key !== 'leadType' && col.key !== 'contact' && col.key !== 'caseNumber' && col.key !== 'verificationStatus' && col.key !== 'sanctionedAmount')
         
-        // Remove ALL commission-related columns to prevent duplicates
+        // Remove ALL commission-related columns and partner columns
         const commissionKeys = [
           'commissionPercentage', 'commissionAmount',
           'agentCommissionPercentage', 'agentCommissionAmount',
@@ -84,22 +84,6 @@ const Leads = () => {
           'referralFranchiseCommissionPercentage', 'referralFranchiseCommissionAmount'
         ]
         let updated = filtered.filter(col => !commissionKeys.includes(col.key))
-        
-        // Always add the new commission columns after remainingAmount (only once)
-        const remainingIndex = updated.findIndex(col => col.key === 'remainingAmount')
-        if (remainingIndex !== -1) {
-          const newCommissionColumns = [
-            { key: 'agentCommissionPercentage', label: 'Partner Comm %', visible: true, sortable: true },
-            { key: 'agentCommissionAmount', label: 'Partner Comm AMT', visible: true, sortable: true },
-            { key: 'subAgentCommissionPercentage', label: 'Sub Partner Comm %', visible: true, sortable: true },
-            { key: 'subAgentCommissionAmount', label: 'Sub Partner Comm AMT', visible: true, sortable: true },
-            { key: 'commissionPercentage', label: 'Associated Comm %', visible: true, sortable: true },
-            { key: 'commissionAmount', label: 'Associated Comm AMT', visible: true, sortable: true },
-            { key: 'referralFranchiseCommissionPercentage', label: 'Refer Associated Comm %', visible: true, sortable: true },
-            { key: 'referralFranchiseCommissionAmount', label: 'Refer Associated Comm AMT', visible: true, sortable: true },
-          ]
-          updated.splice(remainingIndex + 1, 0, ...newCommissionColumns)
-        }
         
         // Update codeUse label to 'DSA Code' if it exists
         updated = updated.map(col => {
@@ -117,28 +101,8 @@ const Leads = () => {
           return col
         })
         
-        // Check if subAgent column exists in saved config, if not add it after agent
-        const hasSubAgent = updated.some(col => col.key === 'subAgent')
-        if (!hasSubAgent) {
-          const agentIndex = updated.findIndex(col => col.key === 'agent')
-          if (agentIndex !== -1) {
-            updated.splice(agentIndex + 1, 0, { key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false })
-          } else {
-            // If agent not found, add subAgent after status
-            const statusIndex = updated.findIndex(col => col.key === 'status')
-            if (statusIndex !== -1) {
-              updated.splice(statusIndex + 1, 0, { key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false })
-            } else {
-              // Fallback: add at the end before actions
-              const actionsIndex = updated.findIndex(col => col.key === 'actions')
-              if (actionsIndex !== -1) {
-                updated.splice(actionsIndex, 0, { key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false })
-              } else {
-                updated.push({ key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false })
-              }
-            }
-          }
-        }
+        // Remove subAgent column (Sub Partner)
+        updated = updated.filter(col => col.key !== 'subAgent')
         
         // Remove any duplicate columns based on key (keep first occurrence)
         const seenKeys = new Set()
@@ -161,36 +125,29 @@ const Leads = () => {
       { key: 'loanAmount', label: 'Loan Amount', visible: true, sortable: true },
       { key: 'disbursedAmount', label: 'Disbursed Amount', visible: true, sortable: true },
       { key: 'remainingAmount', label: 'Remaining', visible: true, sortable: true },
-      { key: 'agentCommissionPercentage', label: 'Partner Comm %', visible: true, sortable: true },
-      { key: 'agentCommissionAmount', label: 'Partner Comm AMT', visible: true, sortable: true },
-      { key: 'subAgentCommissionPercentage', label: 'Sub Partner Comm %', visible: true, sortable: true },
-      { key: 'subAgentCommissionAmount', label: 'Sub Partner Comm AMT', visible: true, sortable: true },
-      { key: 'commissionPercentage', label: 'Associated Comm %', visible: true, sortable: true },
-      { key: 'commissionAmount', label: 'Associated Comm AMT', visible: true, sortable: true },
-      { key: 'referralFranchiseCommissionPercentage', label: 'Refer Associated Comm %', visible: true, sortable: true },
-      { key: 'referralFranchiseCommissionAmount', label: 'Refer Associated Comm AMT', visible: true, sortable: true },
       { key: 'status', label: 'Status', visible: true, sortable: true },
-      { key: 'agent', label: 'Partner', visible: true, sortable: false },
-      { key: 'subAgent', label: 'Sub Partner', visible: true, sortable: false },
-      { key: 'associated', label: 'Associated', visible: true, sortable: false },
-      { key: 'referralFranchise', label: 'Referral Associated', visible: true, sortable: false },
       { key: 'bank', label: 'Bank Name', visible: true, sortable: false },
       { key: 'smBm', label: 'SM/BM', visible: true, sortable: false },
       { key: 'asm', label: 'ASM', visible: true, sortable: false },
       { key: 'branch', label: 'Branch', visible: true, sortable: true },
-      { key: 'loanAccountNo', label: 'Loan Account No', visible: true, sortable: true },
       { key: 'disbursementDate', label: 'Disbursement Date', visible: true, sortable: true },
       { key: 'sanctionedDate', label: 'Sanctioned Date', visible: true, sortable: true },
-      { key: 'codeUse', label: 'DSA Code', visible: true, sortable: true },
       { key: 'remarks', label: 'Remarks', visible: false, sortable: false },
       { key: 'createdAt', label: 'Date', visible: true, sortable: true },
       { key: 'actions', label: 'Actions', visible: true, sortable: false },
-    ]
+    ].filter(col => col.key !== 'associated' && col.key !== 'franchise')
   })
 
   useEffect(() => {
-    // Filter out leadType, contact, caseNumber, and verificationStatus columns before saving
-    const filteredConfig = columnConfig.filter(col => col.key !== 'leadType' && col.key !== 'contact' && col.key !== 'caseNumber' && col.key !== 'verificationStatus')
+    // Filter out leadType, contact, caseNumber, verificationStatus, associated, and franchise columns before saving
+    const filteredConfig = columnConfig.filter(col => 
+      col.key !== 'leadType' && 
+      col.key !== 'contact' && 
+      col.key !== 'caseNumber' && 
+      col.key !== 'verificationStatus' &&
+      col.key !== 'associated' &&
+      col.key !== 'franchise'
+    )
     // Normalize any legacy 'franchise' keys and labels, and ensure codeUse label is 'DSA Code'
     const normalized = filteredConfig.map(col => {
       if (col.key === 'franchise') {
@@ -219,10 +176,7 @@ const Leads = () => {
     fetchBanks()
     fetchBankManagers()
     fetchStaff()
-    // Relationship managers are not allowed to view franchises — don't request franchises for them
-    if (userRole !== 'relationship_manager') {
-      fetchFranchises()
-    }
+    fetchFranchises()
   }, [isAgent, userRole])
 
   useEffect(() => {
@@ -300,7 +254,7 @@ const Leads = () => {
 
   const fetchAgents = async () => {
     try {
-      const response = await api.agents.getAll()
+      const response = await api.users.getAll({ role: 'agent' })
       const agentsData = response.data || response || []
       setAgents(Array.isArray(agentsData) ? agentsData : [])
     } catch (error) {
@@ -588,9 +542,7 @@ const Leads = () => {
       'disbursementDate': 'Disbursement Date',
       'sanctionedDate': 'Sanctioned Date',
       'customerName': 'Customer Name',
-      'loanAccountNo': 'Loan Account No',
       'branch': 'Branch',
-      'codeUse': 'DSA Code',
       'asmName': 'ASM Name',
       'asmEmail': 'ASM Email',
       'asmMobile': 'ASM Mobile',
@@ -677,9 +629,8 @@ const Leads = () => {
         toast.error('Error', 'Bank is required')
         return
       }
-      // If this is the legacy (predefined) payload (no bank-specific form), require loanType and loanAmount.
-      // Skip for new_lead - no bank-specific fields required.
-      if (!isNewLead && !formData.leadForm) {
+      // If this is the legacy (predefined) payload, require loanType and loanAmount.
+      if (!formData.loanType) {
         if (!formData.loanType) {
           toast.error('Error', 'Loan type is required')
           return
@@ -700,7 +651,7 @@ const Leads = () => {
         loanAmount: formData.loanAmount ? parseFloat(formData.loanAmount) : undefined,
         status: formData.status || 'logged',
         agent: formData.agentId || formData.agent || undefined,
-        // Support both shapes: payload may include `associated` (from LeadForm) or `associatedId`
+        // Support both shapes: payload may include `associated` or `associatedId`
         associated: formData.associated || formData.associatedId || formData.franchiseId || undefined,
         associatedModel: formData.associatedModel || (formData.franchiseId ? 'Franchise' : undefined),
         bank: formData.bankId || formData.bank || undefined,
@@ -708,25 +659,12 @@ const Leads = () => {
         subAgent: formData.subAgent || undefined,
         subAgentCommissionPercentage: formData.subAgentCommissionPercentage ? parseFloat(formData.subAgentCommissionPercentage) : undefined,
         subAgentCommissionAmount: formData.subAgentCommissionAmount ? parseFloat(formData.subAgentCommissionAmount) : undefined,
-        // Include referral franchise if provided
-        referralFranchise: formData.referralFranchise || undefined,
-        referralFranchiseCommissionPercentage: formData.referralFranchiseCommissionPercentage ? parseFloat(formData.referralFranchiseCommissionPercentage) : undefined,
-        referralFranchiseCommissionAmount: formData.referralFranchiseCommissionAmount ? parseFloat(formData.referralFranchiseCommissionAmount) : undefined,
-        leadForm: formData.leadForm || undefined,
-        formValues: formData.formValues || undefined,
-        documents: formData.documents || undefined,
         customerName: formData.customerName?.trim() || undefined,
         sanctionedDate: formData.sanctionedDate || undefined,
         disbursedAmount: formData.disbursedAmount ? parseFloat(formData.disbursedAmount) : undefined,
         disbursementDate: formData.disbursementDate || undefined,
         disbursementType: formData.disbursementType || undefined,
         loanAccountNo: formData.loanAccountNo?.trim() || undefined,
-        // Only Relationship Manager and Accounts Manager can set commission
-        ...(userRole === 'relationship_manager' || userRole === 'accounts_manager' ? {
-          commissionBasis: formData.commissionBasis || undefined,
-          commissionPercentage: formData.commissionPercentage ? parseFloat(formData.commissionPercentage) : undefined,
-          commissionAmount: formData.commissionAmount ? parseFloat(formData.commissionAmount) : undefined,
-        } : {}),
         smBm: formData.smBmId || undefined,
         smBmEmail: formData.smBmEmail?.trim() || undefined,
         smBmMobile: formData.smBmMobile?.trim() || undefined,
@@ -991,35 +929,26 @@ const Leads = () => {
     return franchise ? (franchise.name || 'N/A') : 'N/A'
   }
 
-  // Determine the associated name for a lead (RelationshipManager via agent OR franchise)
   const getAssociatedName = (lead) => {
     if (!lead) return 'N/A'
-    // Prefer populated associated object
     if (lead.associated && typeof lead.associated === 'object' && lead.associated.name) {
       return lead.associated.name
     }
-    // If agent is populated, prefer the agent's manager
     if (lead.agent && typeof lead.agent === 'object') {
       const agent = lead.agent
-      if (agent.managedByModel === 'RelationshipManager') {
-        return agent.managedBy?.name || 'N/A'
-      }
       if (agent.managedByModel === 'Franchise') {
         return agent.managedBy?.name || 'N/A'
       }
     }
 
-    // If agent is just an ID, try to resolve from agents list
     const agentId = lead.agentId || (lead.agent && (lead.agent._id || lead.agent.id)) || lead.agent
     if (agentId) {
       const agentObj = agents.find(a => (a._id || a.id) === agentId || (a._id || a.id)?.toString() === agentId?.toString())
-      if (agentObj) {
-        if (agentObj.managedByModel === 'RelationshipManager') return agentObj.managedBy?.name || 'N/A'
-        if (agentObj.managedByModel === 'Franchise') return agentObj.managedBy?.name || 'N/A'
+      if (agentObj && agentObj.managedByModel === 'Franchise') {
+        return agentObj.managedBy?.name || 'N/A'
       }
     }
 
-    // Fallback to populated associated name or N/A
     return lead.associated?.name || 'N/A'
   }
 
@@ -1093,8 +1022,7 @@ const Leads = () => {
     const key = (col.key || '').toString().toLowerCase()
     const label = (col.label || '').toString().toLowerCase()
 
-    // Hide Associated column for Relationship Managers and Franchise users
-    if ((userRole === 'relationship_manager' || userRole === 'franchise') && (key === 'associated' || key === 'franchise' || label.includes('associated') || label.includes('franchise'))) {
+    if (userRole === 'franchise' && (key === 'associated' || key === 'franchise' || label.includes('associated') || label.includes('franchise'))) {
       return false
     }
 
@@ -1151,15 +1079,12 @@ const Leads = () => {
                   'SM/BM': lead.smBm?.name || getStaffName(lead.smBmId || lead.smBm) || 'N/A',
                   ASM: lead.asmName || 'N/A',
                   Branch: lead.branch || 'N/A',
-                  'Loan Account No': lead.loanAccountNo || 'N/A',
                   'Disbursement Date': lead.disbursementDate ? new Date(lead.disbursementDate).toLocaleDateString() : 'N/A',
                   'Sanctioned Date': lead.sanctionedDate ? new Date(lead.sanctionedDate).toLocaleDateString() : 'N/A',
-                  'DSA Code': lead.dsaCode || lead.codeUse || 'N/A',
                   Remarks: lead.remarks || 'N/A',
                   Created: lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A',
                 }
-                // Do not include Associated column for Relationship Managers or Franchise users
-                if (!isAgent && userRole !== 'relationship_manager' && userRole !== 'franchise') {
+                if (!isAgent && userRole !== 'franchise') {
                   base.Associated = getAssociatedName(lead)
                 }
                 if (!isAgent) {
@@ -1195,8 +1120,7 @@ const Leads = () => {
                 <div className="space-y-1 mb-4">
                   {columnConfig
                     .filter(col => {
-                      // Hide associated/franchise column from column settings for Relationship Managers and Franchise users
-                      if ((userRole === 'relationship_manager' || userRole === 'franchise')) {
+                      if (userRole === 'franchise') {
                         const k = (col.key || '').toString().toLowerCase()
                         const lbl = (col.label || '').toString().toLowerCase()
                         if (k === 'associated' || k === 'franchise' || lbl.includes('associated') || lbl.includes('franchise')) {
@@ -1531,339 +1455,13 @@ const Leads = () => {
                       // 'sanctionedAmount' column removed
                       case 'disbursedAmount':
                         return <div className="text-sm font-medium text-gray-900">₹{(lead.disbursedAmount || 0).toLocaleString()}</div>
-                      case 'remainingAmount': {
+                      case 'remainingAmount':
                         const loanAmount = lead.loanAmount || lead.amount || 0;
                         const disbursed = lead.disbursedAmount || 0;
                         const remaining = Math.max(0, loanAmount - disbursed);
                         return <div className="text-sm font-medium text-gray-900">₹{remaining.toLocaleString()}</div>
-                      }
-                      case 'agentCommissionPercentage':
-                        return (
-                          <div className="text-sm font-medium text-gray-900">
-                            {(() => {
-                              const commission = lead.agentCommissionPercentage || 0;
-                              return typeof commission === 'number' ? commission.toFixed(2) + '%' : parseFloat(commission || 0).toFixed(2) + '%';
-                            })()}
-                          </div>
-                        )
-                      case 'agentCommissionAmount':
-                        return (
-                          <div className="text-sm font-medium text-gray-900">
-                            {(() => {
-                              // Calculate automatically if amount is not set or is 0
-                              const storedAmount = lead.agentCommissionAmount || 0;
-                              if (storedAmount > 0) {
-                                return `₹${storedAmount.toLocaleString()}`;
-                              }
-                              // Calculate from percentage
-                              const commissionPercentage = lead.agentCommissionPercentage || 0;
-                              const baseAmount = lead.commissionBasis === 'disbursed' 
-                                ? (lead.disbursedAmount || 0)
-                                : (lead.loanAmount || lead.amount || 0);
-                              const calculatedAmount = (baseAmount * commissionPercentage) / 100;
-                              return `₹${Math.round(calculatedAmount).toLocaleString()}`;
-                            })()}
-                          </div>
-                        )
-                      case 'subAgentCommissionPercentage':
-                        return (
-                          <div className="text-sm font-medium text-gray-900">
-                            {(() => {
-                              const commission = lead.subAgentCommissionPercentage || 0;
-                              return typeof commission === 'number' ? commission.toFixed(2) + '%' : parseFloat(commission || 0).toFixed(2) + '%';
-                            })()}
-                          </div>
-                        )
-                      case 'subAgentCommissionAmount':
-                        return (
-                          <div className="text-sm font-medium text-gray-900">
-                            {(() => {
-                              // Calculate automatically if amount is not set or is 0
-                              const storedAmount = lead.subAgentCommissionAmount || 0;
-                              if (storedAmount > 0) {
-                                return `₹${storedAmount.toLocaleString()}`;
-                              }
-                              // Calculate from percentage
-                              const commissionPercentage = lead.subAgentCommissionPercentage || 0;
-                              const baseAmount = lead.commissionBasis === 'disbursed' 
-                                ? (lead.disbursedAmount || 0)
-                                : (lead.loanAmount || lead.amount || 0);
-                              const calculatedAmount = (baseAmount * commissionPercentage) / 100;
-                              return `₹${Math.round(calculatedAmount).toLocaleString()}`;
-                            })()}
-                          </div>
-                        )
-                      case 'commissionPercentage':
-                        return (
-                          <div className="text-sm font-medium text-gray-900">
-                            {(() => {
-                              const commission = lead.commissionPercentage || 0;
-                              return typeof commission === 'number' ? commission.toFixed(2) + '%' : parseFloat(commission || 0).toFixed(2) + '%';
-                            })()}
-                          </div>
-                        )
-                      case 'commissionAmount':
-                        return (
-                          <div className="text-sm font-medium text-gray-900">
-                            {(() => {
-                              // Calculate automatically if amount is not set or is 0
-                              const storedAmount = lead.commissionAmount || 0;
-                              if (storedAmount > 0) {
-                                return `₹${storedAmount.toLocaleString()}`;
-                              }
-                              // Calculate from percentage
-                              const commissionPercentage = lead.commissionPercentage || 0;
-                              const baseAmount = lead.commissionBasis === 'disbursed' 
-                                ? (lead.disbursedAmount || 0)
-                                : (lead.loanAmount || lead.amount || 0);
-                              const calculatedAmount = (baseAmount * commissionPercentage) / 100;
-                              return `₹${Math.round(calculatedAmount).toLocaleString()}`;
-                            })()}
-                          </div>
-                        )
-                      case 'referralFranchiseCommissionPercentage':
-                        return (
-                          <div className="text-sm font-medium text-gray-900">
-                            {(() => {
-                              const commission = lead.referralFranchiseCommissionPercentage || 0;
-                              return typeof commission === 'number' ? commission.toFixed(2) + '%' : parseFloat(commission || 0).toFixed(2) + '%';
-                            })()}
-                          </div>
-                        )
-                      case 'referralFranchiseCommissionAmount':
-                        return (
-                          <div className="text-sm font-medium text-gray-900">
-                            {(() => {
-                              // Calculate automatically if amount is not set or is 0
-                              const storedAmount = lead.referralFranchiseCommissionAmount || 0;
-                              if (storedAmount > 0) {
-                                return `₹${storedAmount.toLocaleString()}`;
-                              }
-                              // Calculate from percentage
-                              const commissionPercentage = lead.referralFranchiseCommissionPercentage || 0;
-                              const baseAmount = lead.commissionBasis === 'disbursed' 
-                                ? (lead.disbursedAmount || 0)
-                                : (lead.loanAmount || lead.amount || 0);
-                              const calculatedAmount = (baseAmount * commissionPercentage) / 100;
-                              return `₹${Math.round(calculatedAmount).toLocaleString()}`;
-                            })()}
-                          </div>
-                        )
                       case 'status':
                         return <StatusBadge status={lead.status || 'logged'} />
-                      case 'agent': {
-                        const agentName = (() => {
-                          // First check agentName field (stored directly on lead - most reliable)
-                          if (lead.agentName) {
-                            return lead.agentName;
-                          }
-                          
-                          // Then check if agent is populated as an object with name (from backend populate)
-                          if (lead.agent && typeof lead.agent === 'object') {
-                            if (lead.agent.name) {
-                              return lead.agent.name;
-                            }
-                          }
-                          
-                          // Try to get agent ID and look it up in agents array
-                          const agentId = lead.agentId || (lead.agent && (lead.agent._id || lead.agent.id)) || lead.agent;
-                          if (agentId) {
-                            const name = getAgentName(agentId);
-                            if (name && name !== 'N/A') {
-                              return name;
-                            }
-                          }
-                          
-                          // Final fallback
-                          return 'N/A';
-                        })()
-                        
-                        return (
-                          <div className="relative" data-expandable>
-                            <div
-                              className="flex items-center gap-2 cursor-pointer hover:text-primary-900"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleExpand(lead.id || lead._id, 'agent')
-                              }}
-                            >
-                              <span className="text-sm text-gray-900">
-                                {agentName}
-                              </span>
-                              {isExpanded(lead.id || lead._id, 'agent') ? (
-                                <ChevronUp className="w-4 h-4 text-gray-400" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-gray-400" />
-                              )}
-                            </div>
-                            {isExpanded(lead.id || lead._id, 'agent') && (
-                              <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[200px]" onClick={(e) => e.stopPropagation()}>
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-600">Name:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-900">{agentName}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          copyToClipboard(agentName !== 'N/A' ? agentName : '', 'Name')
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded"
-                                        title="Copy name"
-                                      >
-                                        <Copy className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-600">Email:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-900">{lead.agent?.email || 'N/A'}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          copyToClipboard(lead.agent?.email || '', 'Email')
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded"
-                                        title="Copy email"
-                                      >
-                                        <Copy className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-600">Mobile:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-900">{lead.agent?.mobile || 'N/A'}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          copyToClipboard(lead.agent?.mobile || '', 'Mobile')
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded"
-                                        title="Copy mobile"
-                                      >
-                                        <Copy className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      }
-                      case 'subAgent': {
-                        const subAgentName = (() => {
-                          // First check subAgentName field (stored directly on lead - most reliable)
-                          if (lead.subAgentName) {
-                            return lead.subAgentName;
-                          }
-                          
-                          // Then check if subAgent is populated as an object with name (from backend populate)
-                          if (lead.subAgent) {
-                            // Handle populated object
-                            if (typeof lead.subAgent === 'object' && lead.subAgent !== null) {
-                              if (lead.subAgent.name) {
-                                return lead.subAgent.name;
-                              }
-                              // If it has _id or id but no name, try lookup
-                              if (lead.subAgent._id || lead.subAgent.id) {
-                                const name = getSubAgentName(lead.subAgent);
-                                if (name !== 'N/A') {
-                                  return name;
-                                }
-                              }
-                            }
-                            
-                            // Handle ObjectId string
-                            if (typeof lead.subAgent === 'string') {
-                              const name = getSubAgentName(lead.subAgent);
-                              if (name !== 'N/A') {
-                                return name;
-                              }
-                            }
-                          }
-                          
-                          // Final fallback
-                          return 'N/A';
-                        })()
-                        
-                        return (
-                          <div className="relative" data-expandable>
-                            <div
-                              className="flex items-center gap-2 cursor-pointer hover:text-primary-900"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleExpand(lead.id || lead._id, 'subAgent')
-                              }}
-                            >
-                              <span className="text-sm text-gray-900">
-                                {subAgentName}
-                              </span>
-                              {isExpanded(lead.id || lead._id, 'subAgent') ? (
-                                <ChevronUp className="w-4 h-4 text-gray-400" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-gray-400" />
-                              )}
-                            </div>
-                            {isExpanded(lead.id || lead._id, 'subAgent') && (
-                              <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[200px]" onClick={(e) => e.stopPropagation()}>
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-600">Name:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-900">{subAgentName}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          copyToClipboard(subAgentName !== 'N/A' ? subAgentName : '', 'Name')
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded"
-                                        title="Copy name"
-                                      >
-                                        <Copy className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-600">Email:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-900">{lead.subAgent?.email || 'N/A'}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          copyToClipboard(lead.subAgent?.email || '', 'Email')
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded"
-                                        title="Copy email"
-                                      >
-                                        <Copy className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-600">Mobile:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-900">{lead.subAgent?.mobile || 'N/A'}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          copyToClipboard(lead.subAgent?.mobile || '', 'Mobile')
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded"
-                                        title="Copy mobile"
-                                      >
-                                        <Copy className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      }
                       case 'associated': {
                         const associatedName = getAssociatedName(lead)
                         const associatedObj = lead.associated
@@ -1931,96 +1529,6 @@ const Leads = () => {
                                         onClick={(e) => {
                                           e.stopPropagation()
                                           copyToClipboard(associatedMobile !== 'N/A' ? associatedMobile : '', 'Mobile')
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded"
-                                        title="Copy mobile"
-                                      >
-                                        <Copy className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      }
-                      case 'referralFranchise': {
-                        const referralFranchiseName = (() => {
-                          // Check if referralFranchise is populated as an object
-                          if (lead.referralFranchise && typeof lead.referralFranchise === 'object' && lead.referralFranchise.name) {
-                            return lead.referralFranchise.name;
-                          }
-                          // If referralFranchise is an ID, try to find it in franchises array
-                          const referralFranchiseId = lead.referralFranchise?._id || lead.referralFranchise?.id || lead.referralFranchise;
-                          if (referralFranchiseId) {
-                            const franchiseName = getFranchiseName(referralFranchiseId);
-                            return franchiseName !== 'N/A' ? franchiseName : '-';
-                          }
-                          return '-';
-                        })()
-                        
-                        return (
-                          <div className="relative" data-expandable>
-                            <div
-                              className="flex items-center gap-2 cursor-pointer hover:text-primary-900"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleExpand(lead.id || lead._id, 'referralFranchise')
-                              }}
-                            >
-                              <span className="text-sm text-gray-900">
-                                {referralFranchiseName}
-                              </span>
-                              {isExpanded(lead.id || lead._id, 'referralFranchise') ? (
-                                <ChevronUp className="w-4 h-4 text-gray-400" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-gray-400" />
-                              )}
-                            </div>
-                            {isExpanded(lead.id || lead._id, 'referralFranchise') && referralFranchiseName !== '-' && (
-                              <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[200px]" onClick={(e) => e.stopPropagation()}>
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-600">Name:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-900">{referralFranchiseName}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          copyToClipboard(referralFranchiseName !== '-' ? referralFranchiseName : '', 'Name')
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded"
-                                        title="Copy name"
-                                      >
-                                        <Copy className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-600">Email:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-900">{lead.referralFranchise?.email || 'N/A'}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          copyToClipboard(lead.referralFranchise?.email || '', 'Email')
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded"
-                                        title="Copy email"
-                                      >
-                                        <Copy className="w-3 h-3 text-gray-500" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-600">Mobile:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-900">{lead.referralFranchise?.mobile || 'N/A'}</span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          copyToClipboard(lead.referralFranchise?.mobile || '', 'Mobile')
                                         }}
                                         className="p-1 hover:bg-gray-100 rounded"
                                         title="Copy mobile"
@@ -2559,8 +2067,14 @@ const Leads = () => {
         isOpen={isCreateModalOpen}
         onClose={() => { setIsCreateModalOpen(false); setIsSubmitting(false); }}
         title="Create New Lead"
+        size="lg"
       >
-        <LeadForm onSave={handleSave} onClose={() => { setIsCreateModalOpen(false); setIsSubmitting(false); }} isSubmitting={isSubmitting} />
+        <LeadForm 
+          onClose={() => { setIsCreateModalOpen(false); fetchLeads(); }} 
+          onSave={(newLead) => {
+            setLeads([newLead, ...leads])
+          }}
+        />
       </Modal>
 
       {/* Edit Modal */}
@@ -2573,7 +2087,24 @@ const Leads = () => {
         }}
         title="Edit Lead"
       >
-        <LeadForm lead={selectedLead} onSave={handleSave} onClose={() => { setIsEditModalOpen(false); setIsSubmitting(false); }} isSubmitting={isSubmitting} />
+        <LeadForm
+          lead={selectedLead}
+          onClose={() => {
+            setIsEditModalOpen(false)
+            setSelectedLead(null)
+            setIsSubmitting(false)
+            fetchLeads()
+          }}
+          onSave={(updatedLead) => {
+            setLeads((prev) => {
+              const uid = updatedLead?._id || updatedLead?.id
+              return prev.map((l) => {
+                const lid = l?._id || l?.id
+                return uid && lid && String(lid) === String(uid) ? updatedLead : l
+              })
+            })
+          }}
+        />
       </Modal>
 
       {/* Detail Modal */}
@@ -2670,54 +2201,6 @@ const Leads = () => {
                 <p className="mt-1 text-sm text-gray-900">{getAssociatedName(selectedLead)}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Refer Franchise</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {(() => {
-                    // Check if referralFranchise is populated as an object
-                    if (selectedLead.referralFranchise && typeof selectedLead.referralFranchise === 'object' && selectedLead.referralFranchise.name) {
-                      return selectedLead.referralFranchise.name;
-                    }
-                    // If referralFranchise is an ID, try to find it in franchises array
-                    const referralFranchiseId = selectedLead.referralFranchise?._id || selectedLead.referralFranchise?.id || selectedLead.referralFranchise;
-                    if (referralFranchiseId) {
-                      const franchiseName = getFranchiseName(referralFranchiseId);
-                      return franchiseName !== 'N/A' ? franchiseName : '-';
-                    }
-                    return '-';
-                  })()}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Agent Commission %</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {(() => {
-                    const commission = selectedLead.agentCommissionPercentage || selectedLead.commissionPercentage || 0;
-                    return typeof commission === 'number' ? commission.toFixed(2) + '%' : parseFloat(commission || 0).toFixed(2) + '%';
-                  })()}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Agent Commission Amount</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  ₹{(selectedLead.agentCommissionAmount || selectedLead.commissionAmount || 0).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Refer Franchise Commission %</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {(() => {
-                    const commission = selectedLead.referralFranchiseCommissionPercentage || 0;
-                    return typeof commission === 'number' ? commission.toFixed(2) + '%' : parseFloat(commission || 0).toFixed(2) + '%';
-                  })()}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Refer Franchise Commission Amount</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  ₹{(selectedLead.referralFranchiseCommissionAmount || 0).toLocaleString()}
-                </p>
-              </div>
-              <div>
                 <label className="text-sm font-medium text-gray-500">Bank</label>
                 <p className="mt-1 text-sm text-gray-900">
                   {selectedLead.bank?.name || getBankName(selectedLead.bankId || selectedLead.bank) || 'N/A'}
@@ -2732,10 +2215,6 @@ const Leads = () => {
                 <p className="mt-1 text-sm text-gray-900">
                   {selectedLead.disbursementDate ? new Date(selectedLead.disbursementDate).toLocaleDateString() : 'N/A'}
                 </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Loan Account No</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.loanAccountNo || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">SM/BM Name</label>

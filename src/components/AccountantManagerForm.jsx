@@ -1,5 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { X } from 'lucide-react'
 import api from '../services/api'
+import PasswordField from './PasswordField'
+
+const rmIdsFromAccountant = (am) => {
+    const raw = am?.assignedRegionalManagers
+    if (!Array.isArray(raw) || raw.length === 0) return []
+    return raw.map((r) => (typeof r === 'object' && r ? String(r._id || r.id) : String(r))).filter(Boolean)
+}
 
 const AccountantManagerForm = ({ accountantManager, onSave, onClose, isSaving = false }) => {
     const isEdit = !!accountantManager
@@ -8,49 +16,79 @@ const AccountantManagerForm = ({ accountantManager, onSave, onClose, isSaving = 
         email: '',
         mobile: '',
         password: '',
-        assignedRegionalManagers: [],
     })
-    const [errors, setErrors] = useState({})
+    const [assignedRegionalManagers, setAssignedRegionalManagers] = useState([])
     const [regionalManagers, setRegionalManagers] = useState([])
-    const [loadingRMs, setLoadingRMs] = useState(false)
+    const [rmSelect, setRmSelect] = useState('')
+    const [errors, setErrors] = useState({})
 
     useEffect(() => {
-        const loadRegionalManagers = async () => {
-            setLoadingRMs(true)
+        let cancelled = false
+
+        const fetchAssignableUsers = async () => {
             try {
-                const response = await api.users.getAll({ role: 'regional_manager', limit: 500 })
-                setRegionalManagers(response?.data || [])
-            } catch (error) {
-                console.error('Error loading regional managers:', error)
-                setRegionalManagers([])
-            } finally {
-                setLoadingRMs(false)
+                const [rmRes, adminRes] = await Promise.all([
+                    api.users.getAll({ role: 'regional_manager', limit: 500, status: 'active' }),
+                    // Allow selecting Admin (super_admin) from the same dropdown
+                    api.users.getAll({ role: 'super_admin', limit: 50, status: 'active' }),
+                ])
+
+                const rmData = rmRes.data || rmRes || []
+                const adminData = adminRes.data || adminRes || []
+
+                const combined = [
+                    ...(Array.isArray(adminData) ? adminData : []),
+                    ...(Array.isArray(rmData) ? rmData : []),
+                ]
+
+                if (!cancelled) setRegionalManagers(combined)
+            } catch (e) {
+                if (!cancelled) setRegionalManagers([])
             }
         }
-        loadRegionalManagers()
+
+        fetchAssignableUsers()
+
+        return () => {
+            cancelled = true
+        }
     }, [])
 
     useEffect(() => {
         if (accountantManager) {
-            const assignedRMs = accountantManager.assignedRegionalManagers || []
-            // Extract IDs and convert to strings for consistent comparison
-            const assignedRMIds = Array.isArray(assignedRMs) 
-                ? assignedRMs.map(rm => {
-                    // Handle both populated objects and plain IDs
-                    const id = rm._id || rm.id || rm;
-                    return id?.toString ? id.toString() : String(id);
-                }).filter(Boolean)
-                : [];
-            
             setFormData({
                 name: accountantManager.name || '',
                 email: accountantManager.email || '',
                 mobile: accountantManager.mobile || accountantManager.phone || '',
-                password: '', // Password shouldn't be pre-filled
-                assignedRegionalManagers: assignedRMIds,
+                password: '',
             })
+            setAssignedRegionalManagers(rmIdsFromAccountant(accountantManager))
+        } else {
+            setFormData({
+                name: '',
+                email: '',
+                mobile: '',
+                password: '',
+            })
+            setAssignedRegionalManagers([])
         }
+        setRmSelect('')
     }, [accountantManager])
+
+    const rmById = useMemo(() => {
+        const map = new Map()
+        regionalManagers.forEach((rm) => {
+            const id = String(rm._id || rm.id)
+            if (id) map.set(id, rm)
+        })
+        return map
+    }, [regionalManagers])
+
+    const availableRegionalManagers = useMemo(() => {
+        return [...regionalManagers]
+            .filter((rm) => !assignedRegionalManagers.includes(String(rm._id || rm.id)))
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
+    }, [regionalManagers, assignedRegionalManagers])
 
     const validate = () => {
         const newErrors = {}
@@ -65,12 +103,28 @@ const AccountantManagerForm = ({ accountantManager, onSave, onClose, isSaving = 
         return Object.keys(newErrors).length === 0
     }
 
+    const addRegionalManagerFromDropdown = () => {
+        const sid = String(rmSelect || '').trim()
+        if (!sid) return
+        setAssignedRegionalManagers((prev) => (prev.includes(sid) ? prev : [...prev, sid]))
+        setRmSelect('')
+    }
+
+    const removeRegionalManager = (id) => {
+        const sid = String(id)
+        setAssignedRegionalManagers((prev) => prev.filter((x) => x !== sid))
+    }
+
     const handleSubmit = (e) => {
         e.preventDefault()
         if (validate()) {
-            const payload = { ...formData, role: 'accounts_manager' }
+            const payload = {
+                ...formData,
+                role: 'accounts_manager',
+                assignedRegionalManagers,
+            }
             if (isEdit && !payload.password) {
-                delete payload.password // Don't update password if empty during edit
+                delete payload.password
             }
             onSave(payload)
         }
@@ -80,25 +134,6 @@ const AccountantManagerForm = ({ accountantManager, onSave, onClose, isSaving = 
         const { name, value } = e.target
         setFormData((prev) => ({ ...prev, [name]: value }))
         if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }))
-    }
-
-    const handleRegionalManagerToggle = (rmId) => {
-        setFormData((prev) => {
-            const current = prev.assignedRegionalManagers || []
-            // Convert all IDs to strings for consistent comparison
-            const currentStrings = current.map(id => id?.toString ? id.toString() : String(id))
-            const rmIdString = rmId?.toString ? rmId.toString() : String(rmId)
-            const isSelected = currentStrings.includes(rmIdString)
-            return {
-                ...prev,
-                assignedRegionalManagers: isSelected
-                    ? current.filter(id => {
-                        const idString = id?.toString ? id.toString() : String(id)
-                        return idString !== rmIdString
-                    })
-                    : [...current, rmIdString]
-            }
-        })
     }
 
     return (
@@ -144,77 +179,105 @@ const AccountantManagerForm = ({ accountantManager, onSave, onClose, isSaving = 
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Password {!isEdit && <span className="text-red-500">*</span>}
                     </label>
-                    <input
-                        type="password"
+                    <PasswordField
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
                         placeholder={isEdit ? "Leave blank to keep current" : "Min 6 characters"}
+                        autoComplete={isEdit ? 'current-password' : 'new-password'}
+                        error={!!errors.password}
                     />
                     {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
                 </div>
             </div>
 
-            <div className="pt-4 border-t">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Assign Regional Managers <span className="text-gray-500 text-xs">(Select one or multiple)</span>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700" htmlFor="rm-assign-select">
+                    Assigned user
                 </label>
-                {loadingRMs ? (
-                    <p className="text-sm text-gray-500">Loading regional managers...</p>
-                ) : regionalManagers.length === 0 ? (
-                    <p className="text-sm text-gray-500">No regional managers available</p>
-                ) : (
-                    <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-2 space-y-2">
-                        {regionalManagers.map((rm) => {
-                            const rmId = rm._id || rm.id
-                            const rmIdString = rmId?.toString ? rmId.toString() : String(rmId)
-                            // Convert all IDs in formData to strings for comparison
-                            const assignedIds = (formData.assignedRegionalManagers || []).map(id => 
-                                id?.toString ? id.toString() : String(id)
-                            )
-                            const isSelected = assignedIds.includes(rmIdString)
+                <p className="text-xs text-gray-500">
+                    This accountant will only see leads for users working under the franchises linked to these selected users. Add at least one for access to approved leads.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <select
+                        id="rm-assign-select"
+                        value={rmSelect}
+                        onChange={(e) => setRmSelect(e.target.value)}
+                        className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        disabled={regionalManagers.length === 0 || availableRegionalManagers.length === 0}
+                    >
+                        <option value="">
+                            {regionalManagers.length === 0
+                                ? 'No users available'
+                                : availableRegionalManagers.length === 0
+                                  ? 'All users are already assigned'
+                                  : 'Select user…'}
+                        </option>
+                        {availableRegionalManagers.map((rm) => {
+                            const id = String(rm._id || rm.id)
+                            const label = [rm.name || '—', rm.email].filter(Boolean).join(' · ')
                             return (
-                                <label
-                                    key={rmIdString}
-                                    className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={() => handleRegionalManagerToggle(rmIdString)}
-                                        className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                                    />
-                                    <div className="flex-1">
-                                        <span className="text-sm font-medium text-gray-900">{rm.name}</span>
-                                        <span className="text-xs text-gray-500 ml-2">({rm.email})</span>
-                                    </div>
-                                </label>
+                                <option key={id} value={id}>
+                                    {label}
+                                </option>
                             )
                         })}
-                    </div>
-                )}
-                {formData.assignedRegionalManagers?.length > 0 && (
-                    <p className="mt-2 text-xs text-gray-600">
-                        {formData.assignedRegionalManagers.length} Regional Manager(s) selected
+                    </select>
+                    <button
+                        type="button"
+                        onClick={addRegionalManagerFromDropdown}
+                        disabled={!rmSelect || isSaving}
+                        className="shrink-0 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Add
+                    </button>
+                </div>
+                {assignedRegionalManagers.length > 0 ? (
+                    <ul className="flex flex-wrap gap-2 pt-1">
+                        {assignedRegionalManagers.map((id) => {
+                            const rm = rmById.get(id)
+                            const title = rm ? [rm.name, rm.email].filter(Boolean).join(' · ') : id
+                            return (
+                                <li
+                                    key={id}
+                                    className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full bg-primary-50 border border-primary-200 text-sm text-primary-900"
+                                >
+                                    <span className="max-w-[220px] truncate" title={title}>
+                                        {rm?.name || rm?.email || 'User'}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeRegionalManager(id)}
+                                        className="p-0.5 rounded-full hover:bg-primary-100 text-primary-700"
+                                        aria-label={`Remove ${rm?.name || 'user'}`}
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </li>
+                            )
+                        })}
+                    </ul>
+                ) : (
+                    <p className="text-xs text-amber-700 pt-1">
+                        No users assigned — this accountant will not see scoped leads until you add at least one.
                     </p>
                 )}
             </div>
 
-            <div className="flex gap-3 pt-4 border-t">
-                <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium disabled:opacity-50"
-                >
-                    {isSaving ? 'Saving...' : (isEdit ? 'Update Accountant Manager' : 'Create Accountant Manager')}
-                </button>
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-4 border-t">
                 <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                    className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
                 >
                     Cancel
+                </button>
+                <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium disabled:opacity-50"
+                >
+                    {isSaving ? 'Saving...' : (isEdit ? 'Update Accountant Manager' : 'Create Accountant Manager')}
                 </button>
             </div>
         </form>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Mail, Phone, MapPin, User, Building2, Users, CreditCard, MapPinned } from 'lucide-react'
+import { Mail, Phone, MapPin, User, Building2, CreditCard, MapPinned } from 'lucide-react'
 import api from '../services/api'
 
 const ContactCard = ({ label, name, email, phone, mobile, address, extra = [] }) => (
@@ -53,7 +53,6 @@ const MyContacts = () => {
   const [activeTab, setActiveTab] = useState('manager')
   const [loading, setLoading] = useState(true)
   const [manager, setManager] = useState(null)
-  const [managerType, setManagerType] = useState(null)
   const [regionalManager, setRegionalManager] = useState(null)
   const [accountants, setAccountants] = useState([])
 
@@ -70,7 +69,6 @@ const MyContacts = () => {
         const userData = profileResp.data || profileResp
         if (userData?.managedBy && typeof userData.managedBy === 'object') {
           setManager(userData.managedBy)
-          setManagerType(userData.managedByModel)
         }
 
         const amData = accountantsResp.data || accountantsResp || []
@@ -87,8 +85,8 @@ const MyContacts = () => {
     fetchData()
   }, [])
 
-  const managerLabel = managerType === 'RelationshipManager' ? 'Relationship Manager' : 'Franchise'
-  const managerIcon = managerType === 'RelationshipManager' ? Users : Building2
+  const managerLabel = 'Franchise'
+  const managerIcon = Building2
 
   const tabs = [
     { id: 'manager', label: managerLabel, icon: managerIcon },
@@ -161,7 +159,7 @@ const MyContacts = () => {
             />
           </div>
         ) : (
-          <EmptyState icon={managerType === 'RelationshipManager' ? Users : Building2} message={`No ${managerLabel} assigned yet`} />
+          <EmptyState icon={Building2} message={`No ${managerLabel} assigned yet`} />
         )
       ) : activeTab === 'regional_manager' ? (
         regionalManager ? (

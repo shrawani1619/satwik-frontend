@@ -38,7 +38,7 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
     }
   }
 
-  const markAsRead = async (notificationId, redirectTicketId, bannerId) => {
+  const markAsRead = async (notificationId, bannerId) => {
     try {
       if (api.notifications?.markAsRead) {
         await api.notifications.markAsRead(notificationId)
@@ -51,10 +51,7 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
         )
       )
       if (setUnreadCount) setUnreadCount((prev) => Math.max(0, prev - 1))
-      if (redirectTicketId) {
-        onClose?.()
-        navigate('/tickets', { state: { openTicketId: redirectTicketId } })
-      } else if (bannerId) {
+      if (bannerId) {
         // Fetch banner details and show modal
         try {
           const bannerResponse = await api.banners.getById(bannerId)
@@ -75,10 +72,7 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
         )
       )
       if (setUnreadCount) setUnreadCount((prev) => Math.max(0, prev - 1))
-      if (redirectTicketId) {
-        onClose?.()
-        navigate('/tickets', { state: { openTicketId: redirectTicketId } })
-      } else if (bannerId) {
+      if (bannerId) {
         // Fetch banner details and show modal
         try {
           const bannerResponse = await api.banners.getById(bannerId)
@@ -191,7 +185,6 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
           <div className="divide-y divide-gray-100">
             {notifications.map((notification) => {
               const isUnread = !(notification.isRead ?? notification.read)
-              const ticketId = notification.relatedTicketId?._id || notification.relatedTicketId
               const bannerId = notification.relatedBannerId?._id || notification.relatedBannerId
               const isBannerNotification = notification.type === 'banner_created' || !!bannerId
               return (
@@ -199,11 +192,9 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
                   key={notification._id || notification.id}
                   className={`p-3 sm:p-4 hover:bg-gray-50 transition-colors ${
                     isUnread ? 'bg-blue-50/50 border-l-2 border-l-primary-900' : ''
-                  } ${ticketId || bannerId ? 'cursor-pointer' : ''}`}
+                  } ${bannerId ? 'cursor-pointer' : ''}`}
                   onClick={() => {
-                    if (ticketId) {
-                      markAsRead(notification._id || notification.id, ticketId)
-                    } else if (bannerId) {
+                    if (bannerId) {
                       markAsRead(notification._id || notification.id, null, bannerId)
                     } else {
                       markAsRead(notification._id || notification.id)
@@ -230,9 +221,9 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
                           })}
                         </p>
                       )}
-                      {(ticketId || isBannerNotification) && (
+                      {isBannerNotification && (
                         <p className="text-xs text-primary-900 mt-2 font-medium flex items-center gap-1">
-                          {isBannerNotification ? 'Click to view banner details' : 'Click to view service request'}
+                          Click to view banner details
                           <span>→</span>
                         </p>
                       )}

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import api from '../services/api'
 import { authService } from '../services/auth.service'
 import Modal from './Modal'
+import PasswordField from './PasswordField'
 import {
   formatMobileInput,
   isValidMobileInput,
@@ -20,7 +21,7 @@ import {
 const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = null, fixedManagedByModel = null, hideManagedBySelector = false }) => {
   const currentUser = useMemo(() => authService.getUser(), [])
 
-  const defaultManagedByModel = currentUser?.role === 'franchise' ? 'Franchise' : (currentUser?.role === 'relationship_manager' ? 'RelationshipManager' : 'Franchise')
+  const defaultManagedByModel = 'Franchise'
 
   const [formData, setFormData] = useState({
     name: '',
@@ -31,7 +32,7 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
     agentType: 'normal', // 'normal' or 'GST'
     // new flexible ownership fields
     managedBy: '',
-    managedByModel: defaultManagedByModel, // or 'RelationshipManager'
+    managedByModel: 'Franchise',
   })
  
   // Add KYC, bank details and document placeholders
@@ -48,12 +49,9 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
 
   const [errors, setErrors] = useState({})
   const [franchises, setFranchises] = useState([])
-  const [relationshipManagers, setRelationshipManagers] = useState([])
   const [franchiseSearch, setFranchiseSearch] = useState('')
-  const [rmSearch, setRmSearch] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [loadingFranchises, setLoadingFranchises] = useState(false)
-  const [loadingRMs, setLoadingRMs] = useState(false)
 
   useEffect(() => {
     // If the logged in user is a franchise owner, default ownership to their franchise and prevent changing it
@@ -72,36 +70,7 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
         setFranchiseSearch(currentUser.franchise.name)
       }
     }
-
-    // Only fetch relationship managers on mount. Franchises will be loaded lazily when the user interacts
-    const fetchRelationshipManagers = async () => {
-      try {
-        setLoadingRMs(true)
-        const resp = await api.relationshipManagers.getAll({ status: 'active' })
-        const rmData = resp.data || resp || []
-        if (Array.isArray(rmData)) setRelationshipManagers(rmData)
-      } catch (err) {
-        console.error('Failed to fetch relationship managers:', err)
-      } finally {
-        setLoadingRMs(false)
-      }
-    }
-
-    fetchRelationshipManagers()
-  }, [])
-
-  // If the logged in user is a relationship manager, default ownership to them and hide selector (unless overridden by prop)
-  useEffect(() => {
-    if (!agent && currentUser && currentUser.role === 'relationship_manager' && !fixedManagedBy) {
-      setFormData(prev => ({
-        ...prev,
-        managedByModel: 'RelationshipManager',
-        managedBy: currentUser._id || currentUser.id || '',
-      }))
-      // show RM name if available
-      if (currentUser.name) setRmSearch(currentUser.name)
-    }
-  }, [agent, currentUser, fixedManagedBy])
+  }, [currentUser, franchises])
 
   // Fetch franchises lazily when needed (e.g., when the franchise search input is focused)
   const fetchFranchises = async () => {
@@ -137,52 +106,40 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
         status: agent.status || 'active',
         agentType: agent.agentType || 'normal',
         managedBy: managedById,
-        managedByModel,
+        managedByModel: 'Franchise',
         kyc: agent.kyc || { pan: '', aadhaar: '', gst: '' },
         bankDetails: agent.bankDetails || { accountHolderName: '', accountNumber: '', bankName: '', branch: '', ifsc: '' },
         documents: agent.documents || [],
       })
       
       // Set initial search string if franchise is populated
-      // populate search text for managedBy depending on type
-      if (managedByModel === 'Franchise') {
-        if (agent.franchise && typeof agent.franchise === 'object' && agent.franchise.name) {
-          setFranchiseSearch(agent.franchise.name)
-        } else if (managedById && franchises.length > 0) {
-          const found = franchises.find(f => f._id === managedById || f.id === managedById)
-          if (found) setFranchiseSearch(found.name)
-        }
-      } else {
-        if (agent.managedBy && typeof agent.managedBy === 'object' && agent.managedBy.name) {
-          setRmSearch(agent.managedBy.name)
-        } else if (managedById && relationshipManagers.length > 0) {
-          const found = relationshipManagers.find(r => r._id === managedById || r.id === managedById)
-          if (found) setRmSearch(found.name)
-        }
+      if (agent.franchise && typeof agent.franchise === 'object' && agent.franchise.name) {
+        setFranchiseSearch(agent.franchise.name)
+      } else if (managedById && franchises.length > 0) {
+        const found = franchises.find(f => f._id === managedById || f.id === managedById)
+        if (found) setFranchiseSearch(found.name)
       }
     }
   }, [agent, franchises])
 
-  // If parent context provides fixed managedBy, set it on mount (for create-from-RM or create-from-Franchise flows)
+  // If parent context provides fixed managedBy, set it on mount
   useEffect(() => {
     if (!agent && fixedManagedBy) {
       setFormData(prev => ({
         ...prev,
         managedBy: fixedManagedBy,
-        managedByModel: fixedManagedByModel || prev.managedByModel,
+        managedByModel: 'Franchise',
       }))
       // set display search strings if name known in passed context (optional)
-      if (fixedManagedByModel === 'Franchise' && fixedManagedBy?.name) {
+      if (fixedManagedBy?.name) {
         setFranchiseSearch(fixedManagedBy.name)
-      } else if (fixedManagedByModel === 'RelationshipManager' && fixedManagedBy?.name) {
-        setRmSearch(fixedManagedBy.name)
       }
     }
-  }, [agent, fixedManagedBy, fixedManagedByModel])
+  }, [agent, fixedManagedBy])
 
   // Whether the current user should be restricted to their own franchise
   const isFranchiseCreator = currentUser?.role === 'franchise'
-  const effectiveHideManagedBySelector = typeof hideManagedBySelector === 'boolean' ? hideManagedBySelector : (currentUser?.role === 'relationship_manager')
+  const effectiveHideManagedBySelector = typeof hideManagedBySelector === 'boolean' ? hideManagedBySelector : false
 
   const validate = (dataParam) => {
     const newErrors = {}
@@ -192,7 +149,7 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
     else if (!/\S+@\S+\.\S+/.test(data.email)) newErrors.email = 'Email is invalid'
     if (!data.phone.trim()) newErrors.phone = 'Phone is required'
     else if (!isValidMobileInput(data.phone)) newErrors.phone = 'Invalid phone number'
-    if (!data.managedBy) newErrors.managedBy = `${data.managedByModel === 'Franchise' ? 'Franchise' : 'Relationship Manager'} is required`
+    if (!data.managedBy) newErrors.managedBy = 'Franchise is required'
 
     // KYC / Bank validations
     if (!data.kyc?.pan?.trim()) newErrors['kyc.pan'] = 'PAN is required'
@@ -235,13 +192,9 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
     const resolveManagedByIfNeeded = () => {
       // already an id
       if (formData.managedBy) return formData
-      if (formData.managedByModel === 'Franchise' && franchiseSearch) {
+      if (franchiseSearch) {
         const f = franchises.find(x => x.name.toLowerCase() === franchiseSearch.toLowerCase())
         if (f) return { ...formData, managedBy: f._id || f.id }
-      }
-      if (formData.managedByModel === 'RelationshipManager' && rmSearch) {
-        const r = relationshipManagers.find(x => x.name.toLowerCase() === rmSearch.toLowerCase())
-        if (r) return { ...formData, managedBy: r._id || r.id }
       }
       return formData
     }
@@ -343,15 +296,6 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
     }
   }
 
-  const handleRmSearchChange = (e) => {
-    const value = e.target.value
-    setRmSearch(value)
-    setShowSuggestions(true)
-    if (value === '') {
-      setFormData(prev => ({ ...prev, managedBy: '' }))
-    }
-  }
-
   const handleFileChange = async (e) => {
     // legacy single-file handler kept for backward compatibility; prefer handleFileChangeForType
     const file = e.target.files && e.target.files[0]
@@ -442,17 +386,7 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
     }
   }
 
-  const selectRM = (rm) => {
-    setFormData(prev => ({ ...prev, managedBy: rm._id || rm.id, managedByModel: 'RelationshipManager' }))
-    setRmSearch(rm.name)
-    setShowSuggestions(false)
-    if (errors.managedBy) {
-      setErrors(prev => ({ ...prev, managedBy: '' }))
-    }
-  }
-
   const filteredFranchises = franchises.filter(f => f.name.toLowerCase().includes(franchiseSearch.toLowerCase()))
-  const filteredRMs = relationshipManagers.filter(r => r.name.toLowerCase().includes(rmSearch.toLowerCase()))
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -508,59 +442,23 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Managed By <span className="text-red-500">*</span>
         </label>
-        <div className="flex gap-3 mb-2">
-          {!effectiveHideManagedBySelector ? (
-            !isFranchiseCreator ? (
-              <>
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    name="managedByModel"
-                    value="Franchise"
-                    checked={formData.managedByModel === 'Franchise'}
-                    onChange={() => setFormData(prev => ({ ...prev, managedByModel: 'Franchise', managedBy: '' }))}
-                    className="mr-2"
-                  />
-                  Franchise
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    name="managedByModel"
-                    value="RelationshipManager"
-                    checked={formData.managedByModel === 'RelationshipManager'}
-                    onChange={() => setFormData(prev => ({ ...prev, managedByModel: 'RelationshipManager', managedBy: '' }))}
-                    className="mr-2"
-                  />
-                  Relationship Manager
-                </label>
-              </>
-            ) : (
-              <div className="text-sm text-gray-700">Associated with your franchise</div>
-            )
-          ) : (
-            // When selector is hidden because the parent context fixes ownership,
-            // show a small label indicating the fixed association.
-            <div className="text-sm text-gray-700">
-              {formData.managedByModel === 'Franchise' ? 'Associated with Franchise' : 'Associated with Relationship Manager'}
-            </div>
-          )}
-        </div>
+        {isFranchiseCreator ? (
+          <div className="text-sm text-gray-700">Associated with your franchise</div>
+        ) : null}
 
-        {formData.managedByModel === 'Franchise' ? (
-          <div className="relative">
-            <input
-              type="text"
-              value={franchiseSearch}
-              onChange={handleFranchiseSearchChange}
-              onFocus={() => { setShowSuggestions(true); loadFranchisesIfNeeded(); }}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.managedBy ? 'border-red-500' : 'border-gray-300'
-                }`}
-              placeholder={isFranchiseCreator ? 'Your franchise' : 'Search and select franchise'}
-              autoComplete="off"
-              readOnly={isFranchiseCreator}
-            />
+        <div className="relative">
+          <input
+            type="text"
+            value={franchiseSearch}
+            onChange={handleFranchiseSearchChange}
+            onFocus={() => { setShowSuggestions(true); loadFranchisesIfNeeded(); }}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.managedBy ? 'border-red-500' : 'border-gray-300'
+              }`}
+            placeholder={isFranchiseCreator ? 'Your franchise' : 'Search and select franchise'}
+            autoComplete="off"
+            readOnly={isFranchiseCreator}
+          />
             {!effectiveHideManagedBySelector && showSuggestions && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                 {loadingFranchises ? (
@@ -584,44 +482,6 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
               </div>
             )}
           </div>
-        ) : (
-          <div className="relative">
-            <input
-              type="text"
-              value={rmSearch}
-              onChange={handleRmSearchChange}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.managedBy ? 'border-red-500' : 'border-gray-300'
-                }`}
-              placeholder="Search and select relationship manager"
-              autoComplete="off"
-              readOnly={isFranchiseCreator}
-            />
-            {!effectiveHideManagedBySelector && showSuggestions && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {loadingRMs ? (
-                  <div className="px-3 py-2 text-sm text-gray-500">Loading...</div>
-                ) : filteredRMs.length > 0 ? (
-                  filteredRMs.map((rm) => (
-                    <div
-                      key={rm._id || rm.id}
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        if (!isFranchiseCreator) selectRM(rm)
-                      }}
-                      className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                    >
-                      {rm.name}
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-3 py-2 text-sm text-gray-500">No relationship managers found</div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
         {errors.managedBy && <p className="mt-1 text-sm text-red-600">{errors.managedBy}</p>}
       </div>
@@ -646,14 +506,13 @@ const AgentForm = ({ agent, onSave, onClose, isSaving = false, fixedManagedBy = 
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Password {agent ? '(Optional)' : <span className="text-red-500">*</span>}
         </label>
-        <input
-          type="password"
+        <PasswordField
           name="password"
           value={formData.password}
           onChange={handleChange}
-          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.password ? 'border-red-500' : 'border-gray-300'
-            }`}
           placeholder="Enter password (min 6 characters)"
+          autoComplete="new-password"
+          error={!!errors.password}
         />
         {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
       </div>

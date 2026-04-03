@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import PasswordField from './PasswordField'
 
 const StaffForm = ({ staff, onSave, onClose }) => {
   const [formData, setFormData] = useState({
@@ -142,14 +143,13 @@ const StaffForm = ({ staff, onSave, onClose }) => {
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Password {staff ? '(Optional)' : <span className="text-red-500">*</span>}
         </label>
-        <input
-          type="password"
+        <PasswordField
           name="password"
           value={formData.password}
           onChange={handleChange}
-          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.password ? 'border-red-500' : 'border-gray-300'
-            }`}
           placeholder="Enter password (min 6 characters)"
+          autoComplete="new-password"
+          error={!!errors.password}
         />
         {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
       </div>

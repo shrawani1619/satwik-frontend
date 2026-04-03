@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { authService } from '../services/auth.service'
 import { api } from '../services/api'
 import Modal from './Modal'
+import PasswordField from './PasswordField'
 import {
   formatMobileInput,
   isValidMobileInput,
@@ -20,7 +21,7 @@ import {
 const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
   const isCreate = !franchise
   const isAdmin = authService.getUser()?.role === 'super_admin'
-  const canAssignRM = ['super_admin', 'regional_manager'].includes(authService.getUser()?.role)
+  const canSetFranchiseType = ['super_admin', 'regional_manager'].includes(authService.getUser()?.role)
   const [regionalManagers, setRegionalManagers] = useState([])
   const [formData, setFormData] = useState({
     name: '',
@@ -31,7 +32,6 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
     status: 'active',
     franchiseType: 'normal',
     regionalManager: '',
-    relationshipManager: '',
     address: {
       street: '',
       city: '',
@@ -62,10 +62,6 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
   }, [isAdmin])
 
   useEffect(() => {
-    // Relationship managers are not linked to franchises per updated hierarchy.
-  }, [canAssignRM])
-
-  useEffect(() => {
     if (franchise) {
       setFormData({
         name: franchise.name || '',
@@ -76,7 +72,6 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
         status: franchise.status || 'active',
         franchiseType: franchise.franchiseType || 'normal',
         regionalManager: franchise.regionalManager?._id || franchise.regionalManager || '',
-        relationshipManager: '',
         address: {
           street: franchise.address?.street || '',
           city: franchise.address?.city || '',
@@ -322,6 +317,21 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
         {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
       </div>
 
+      {!isCreate && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Owner name <span className="text-gray-500 font-normal text-xs">(optional — defaults to franchise name)</span>
+          </label>
+          <input
+            type="text"
+            name="ownerName"
+            value={formData.ownerName}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Full name of person who logs in"
+          />
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -360,20 +370,20 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Login Password <span className="text-red-500">*</span>
           </label>
-          <input
-            type="password"
+          <PasswordField
             name="password"
             value={formData.password}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
             placeholder="Min 6 characters"
+            autoComplete="new-password"
+            error={!!errors.password}
           />
           {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
         </div>
       )}
 
       {/* Franchise Type — moved to top so GST fields can conditionally show below */}
-      {canAssignRM && (
+      {canSetFranchiseType && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Franchise Type <span className="text-red-500">*</span>
@@ -390,8 +400,8 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
         </div>
       )}
 
-      {/* Regional Manager — moved up alongside Franchise Type */}
-      {isAdmin && (
+      {/* Regional Manager — assign when editing (create uses creator / backend default) */}
+      {isAdmin && !isCreate && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Regional Manager

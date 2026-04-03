@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, Filter, ChevronDown, ChevronUp, Calendar, User, Trash2, Edit, Plus, FileText, Building2, Store, Users, RefreshCw, Eye, ChevronRight } from 'lucide-react'
+import { Search, Filter, ChevronDown, ChevronUp, Calendar, User, Trash2, Edit, Plus, FileText, Building2, Store, RefreshCw, Eye, ChevronRight } from 'lucide-react'
 import api from '../services/api'
 import { toast } from '../services/toastService'
 
@@ -112,8 +112,6 @@ const History = () => {
         return <FileText className="w-4 h-4" />
       case 'Franchise':
         return <Store className="w-4 h-4" />
-      case 'RelationshipManager':
-        return <Users className="w-4 h-4" />
       case 'User':
         return <User className="w-4 h-4" />
       default:
@@ -178,8 +176,6 @@ const History = () => {
         return data.customerName || data.applicantName || data.caseNumber || 'Lead'
       case 'Franchise':
         return data.name || 'Franchise'
-      case 'RelationshipManager':
-        return data.name || 'Relationship Manager'
       case 'User':
         return data.name || data.email || 'User'
       default:
