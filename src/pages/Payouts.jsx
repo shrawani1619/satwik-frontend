@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Navigate } from 'react-router-dom'
 import { Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Plus, ChevronDown, ChevronUp, FileDown, Download, FileText } from 'lucide-react'
 import IndianRupeeIcon from '../components/IndianRupeeIcon'
 import api from '../services/api'
@@ -312,6 +313,10 @@ const Payouts = () => {
 
   const hasActiveFilters =
     statusFilter !== 'all' || franchiseFilter || agentFilter || dateFromFilter || dateToFilter
+
+  if (userRole === 'regional_manager') {
+    return <Navigate to="/" replace />
+  }
 
   if (loading) {
     return (

@@ -7,7 +7,6 @@ const LOAN_TYPES = [
   { value: 'loan_against_property', label: 'Loan Against Property' },
   { value: 'education_loan', label: 'Education Loan' },
   { value: 'car_loan', label: 'Car Loan' },
-  { value: 'gold_loan', label: 'Gold Loan' },
 ]
 
 const BankForm = ({ bank, onSave, onClose }) => {

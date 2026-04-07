@@ -58,7 +58,7 @@ const Sidebar = ({ onMinimizeChange, isMobile = false, isOpen = false, onClose }
   const allMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['super_admin', 'regional_manager', 'franchise', 'accounts_manager'] },
     { icon: MapPin, label: 'Regional Manager', path: '/regional-managers', roles: ['super_admin'] },
-    { icon: Store, label: 'Franchises', path: '/franchises', roles: ['super_admin', 'regional_manager'] },
+    { icon: Store, label: 'Franchises', path: '/franchises', roles: ['super_admin'] },
     { icon: Users, label: 'Leads', path: '/leads', roles: ['super_admin', 'regional_manager', 'franchise', 'accounts_manager'] },
     { icon: Building2, label: 'Banks', path: '/banks', roles: ['super_admin', 'regional_manager'] },
     { icon: UserCheck, label: 'Accountant Managers', path: '/accountant-managers', roles: ['super_admin'] },
@@ -68,7 +68,7 @@ const Sidebar = ({ onMinimizeChange, isMobile = false, isOpen = false, onClose }
     { icon: Image, label: 'Banners', path: '/banners', roles: ['super_admin', 'regional_manager', 'franchise', 'accounts_manager'] },
     { icon: Receipt, label: 'Form 130 / TDS', path: '/form16', roles: ['super_admin', 'accounts_manager', 'franchise', 'regional_manager', 'agent'] },
     { icon: History, label: 'History', path: '/history', roles: ['super_admin', 'accounts_manager'] },
-    { icon: Percent, label: 'Commission', path: '/franchise-commission', roles: ['super_admin', 'accounts_manager'] },
+    { icon: Percent, label: 'Commission', path: '/franchise-commission', roles: ['super_admin', 'accounts_manager', 'regional_manager'] },
   ]
 
   const menuItems = allMenuItems.filter(item => item.roles.includes(userRole))

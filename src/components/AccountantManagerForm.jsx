@@ -19,18 +19,22 @@ const AccountantManagerForm = ({ accountantManager, onSave, onClose, isSaving = 
     })
     const [assignedRegionalManagers, setAssignedRegionalManagers] = useState([])
     const [regionalManagers, setRegionalManagers] = useState([])
+    const [franchises, setFranchises] = useState([])
+    const [franchisesLoading, setFranchisesLoading] = useState(true)
     const [rmSelect, setRmSelect] = useState('')
     const [errors, setErrors] = useState({})
 
     useEffect(() => {
         let cancelled = false
 
-        const fetchAssignableUsers = async () => {
+        const fetchAssignableUsersAndFranchises = async () => {
             try {
-                const [rmRes, adminRes] = await Promise.all([
+                setFranchisesLoading(true)
+                const [rmRes, adminRes, franchiseRes] = await Promise.all([
                     api.users.getAll({ role: 'regional_manager', limit: 500, status: 'active' }),
                     // Allow selecting Admin (super_admin) from the same dropdown
                     api.users.getAll({ role: 'super_admin', limit: 50, status: 'active' }),
+                    api.franchises.getAll({ status: 'active', limit: 500, page: 1 }),
                 ])
 
                 const rmData = rmRes.data || rmRes || []
@@ -41,13 +45,24 @@ const AccountantManagerForm = ({ accountantManager, onSave, onClose, isSaving = 
                     ...(Array.isArray(rmData) ? rmData : []),
                 ]
 
-                if (!cancelled) setRegionalManagers(combined)
+                const frRaw = franchiseRes?.data ?? franchiseRes ?? []
+                const frList = Array.isArray(frRaw) ? frRaw : []
+
+                if (!cancelled) {
+                    setRegionalManagers(combined)
+                    setFranchises(frList)
+                }
             } catch (e) {
-                if (!cancelled) setRegionalManagers([])
+                if (!cancelled) {
+                    setRegionalManagers([])
+                    setFranchises([])
+                }
+            } finally {
+                if (!cancelled) setFranchisesLoading(false)
             }
         }
 
-        fetchAssignableUsers()
+        fetchAssignableUsersAndFranchises()
 
         return () => {
             cancelled = true
@@ -215,7 +230,23 @@ const AccountantManagerForm = ({ accountantManager, onSave, onClose, isSaving = 
                         </option>
                         {availableRegionalManagers.map((rm) => {
                             const id = String(rm._id || rm.id)
-                            const label = [rm.name || '—', rm.email].filter(Boolean).join(' · ')
+                            const baseLabel = [rm.name || '—', rm.email].filter(Boolean).join(' · ')
+                            let scopeSuffix = ''
+                            if (!franchisesLoading) {
+                                if (rm.role === 'super_admin') {
+                                    scopeSuffix = ` — All franchises (${franchises.length})`
+                                } else if (rm.role === 'regional_manager') {
+                                    const rmId = String(rm._id || rm.id)
+                                    const count = franchises.reduce((acc, f) => {
+                                        const rid = f.regionalManager && typeof f.regionalManager === 'object'
+                                            ? String(f.regionalManager._id || f.regionalManager.id)
+                                            : String(f.regionalManager || '')
+                                        return rid && rid === rmId ? acc + 1 : acc
+                                    }, 0)
+                                    scopeSuffix = ` — ${count} franchise${count === 1 ? '' : 's'}`
+                                }
+                            }
+                            const label = `${baseLabel}${scopeSuffix}`
                             return (
                                 <option key={id} value={id}>
                                     {label}

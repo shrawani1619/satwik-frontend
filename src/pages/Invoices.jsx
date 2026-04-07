@@ -68,7 +68,8 @@ const Invoices = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true)
-      const response = await api.invoices.getAll()
+      // API default limit is 10; load full list for admin views and client-side filters
+      const response = await api.invoices.getAll({ page: 1, limit: 10000 })
       const invoicesData = response.data || response || []
       setInvoices(Array.isArray(invoicesData) ? invoicesData : [])
     } catch (error) {
@@ -81,7 +82,7 @@ const Invoices = () => {
 
   const fetchLeads = async () => {
     try {
-      const response = await api.leads.getAll()
+      const response = await api.leads.getAll({ page: 1, limit: 10000 })
       const leadsData = response.data || response || []
       setLeads(Array.isArray(leadsData) ? leadsData : [])
     } catch (error) {

@@ -4,15 +4,10 @@ import {
     PieChart,
     Pie,
     Cell,
-    BarChart,
-    Bar,
-    CartesianGrid,
-    XAxis,
-    YAxis,
-    Tooltip,
 } from 'recharts';
 import api from '../services/api';
 import { formatInCrores } from '../utils/formatUtils';
+import LeadConversionFunnelChart from '../components/LeadConversionFunnelChart';
 
 const AccountantOverview = () => {
     const [dashboardData, setDashboardData] = useState(null);
@@ -171,37 +166,7 @@ const AccountantOverview = () => {
                             </button>
                         </div>
                     </div>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                layout="vertical"
-                                data={funnelData}
-                                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                                <XAxis type="number" hide />
-                                <YAxis
-                                    dataKey="name"
-                                    type="category"
-                                    tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
-                                    width={80}
-                                    axisLine={false}
-                                    tickLine={false}
-                                />
-                                <Tooltip
-                                    cursor={{ fill: '#f8fafc' }}
-                                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                                    formatter={(value) => formatInCrores(value)}
-                                    labelFormatter={(label) => label}
-                                />
-                                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={32}>
-                                    {funnelData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                    <LeadConversionFunnelChart funnelData={funnelData} />
                 </div>
             </div>
 
@@ -236,7 +201,7 @@ const AccountantOverview = () => {
                                             <td className="px-6 py-4 text-right">
                                                 <div className="text-sm font-bold text-gray-900">{lead.amount}</div>
                                                 <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${['Logged', 'logged'].includes(lead.status) ? 'bg-orange-100 text-orange-700' :
-                                                    ['Sanctioned', 'sanctioned'].includes(lead.status) ? 'bg-lime-100 text-lime-700' :
+                                                    ['legal_valuation_property_done', 'sanctioned_branch_appointment_fixed'].includes(lead.status) ? 'bg-lime-100 text-lime-700' :
                                                         ['Disbursed', 'disbursed', 'Partial_disbursed', 'partial_disbursed'].includes(lead.status) ? 'bg-blue-100 text-blue-700' :
                                                             ['Completed', 'completed'].includes(lead.status) ? 'bg-green-100 text-green-700' :
                                                                 'bg-red-100 text-red-700'

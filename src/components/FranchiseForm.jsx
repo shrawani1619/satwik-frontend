@@ -22,7 +22,6 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
   const isCreate = !franchise
   const isAdmin = authService.getUser()?.role === 'super_admin'
   const canSetFranchiseType = ['super_admin', 'regional_manager'].includes(authService.getUser()?.role)
-  const [regionalManagers, setRegionalManagers] = useState([])
   const [formData, setFormData] = useState({
     name: '',
     ownerName: '',
@@ -31,7 +30,6 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
     password: '',
     status: 'active',
     franchiseType: 'normal',
-    regionalManager: '',
     address: {
       street: '',
       city: '',
@@ -54,14 +52,6 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
   }, [])
 
   useEffect(() => {
-    if (isAdmin) {
-      api.users.getAll({ role: 'regional_manager', limit: 200 }).then((res) => {
-        setRegionalManagers(res.data || [])
-      }).catch(() => setRegionalManagers([]))
-    }
-  }, [isAdmin])
-
-  useEffect(() => {
     if (franchise) {
       setFormData({
         name: franchise.name || '',
@@ -71,7 +61,6 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
         password: '',
         status: franchise.status || 'active',
         franchiseType: franchise.franchiseType || 'normal',
-        regionalManager: franchise.regionalManager?._id || franchise.regionalManager || '',
         address: {
           street: franchise.address?.street || '',
           city: franchise.address?.city || '',
@@ -129,8 +118,6 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
       }
       if (!isAdmin) {
         delete payload.regionalManager
-      } else {
-        payload.regionalManager = formData.regionalManager || null
       }
       const files = {
         pendingFiles: formData.pendingFiles || {},
@@ -396,28 +383,6 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
           >
             <option value="normal">Normal</option>
             <option value="GST">GST</option>
-          </select>
-        </div>
-      )}
-
-      {/* Regional Manager — assign when editing (create uses creator / backend default) */}
-      {isAdmin && !isCreate && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Regional Manager
-          </label>
-          <select
-            name="regionalManager"
-            value={formData.regionalManager}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="">None</option>
-            {regionalManagers.map((rm) => (
-              <option key={rm._id} value={rm._id}>
-                {rm.name} {rm.email ? `(${rm.email})` : ''}
-              </option>
-            ))}
           </select>
         </div>
       )}

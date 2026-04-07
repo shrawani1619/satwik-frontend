@@ -171,6 +171,7 @@ const Dashboard = () => {
   const { totalLeads, totalAgents, totalFranchises, totalRevenue, totalLoanAmount } = stats
   const isAgent = userRole === 'agent'
   const isAccountant = userRole === 'accounts_manager'
+  const isRegionalManager = userRole === 'regional_manager'
 
   // For admin / regional / franchise dashboards: aggregate total loan amount by type
   const totalLoanAmountForChart = Array.isArray(loanDistribution)
@@ -333,7 +334,11 @@ const Dashboard = () => {
       ) : (
         <>
           {/* Summary Cards - Admin / Regional / Franchise */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div
+            className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${
+              isRegionalManager ? 'lg:grid-cols-3' : 'lg:grid-cols-5'
+            }`}
+          >
             <StatCard
               title="Total Leads"
               value={totalLeads}
@@ -346,24 +351,28 @@ const Dashboard = () => {
               icon={Users}
               color="green"
             />
-            <StatCard
-              title="Active Franchises"
-              value={totalFranchises}
-              icon={Building2}
-              color="teal"
-            />
+            {!isRegionalManager && (
+              <StatCard
+                title="Active Franchises"
+                value={totalFranchises}
+                icon={Building2}
+                color="teal"
+              />
+            )}
             <StatCard
               title="Total Amount"
               value={formatInCrores(totalLoanAmount || 0)}
               icon={IndianRupeeIcon}
               color="orange"
             />
-            <StatCard
-              title="Total Revenue"
-              value={`₹${(totalRevenue / 1000).toFixed(1)}K`}
-              icon={IndianRupeeIcon}
-              color="purple"
-            />
+            {!isRegionalManager && (
+              <StatCard
+                title="Total Revenue"
+                value={`₹${(totalRevenue / 1000).toFixed(1)}K`}
+                icon={IndianRupeeIcon}
+                color="purple"
+              />
+            )}
           </div>
 
           {/* Loan Distribution & Lead Conversion Funnel - Admin, Regional Manager & Franchise Owner */}

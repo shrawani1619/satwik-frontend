@@ -84,6 +84,22 @@ const Leads = () => {
           'referralFranchiseCommissionPercentage', 'referralFranchiseCommissionAmount'
         ]
         let updated = filtered.filter(col => !commissionKeys.includes(col.key))
+
+        // Remove Partner / Referral Associated / Associated columns (legacy + current)
+        const removeKeys = new Set([
+          'agent', 'agentId', 'agentName', 'partner', 'partnerId', 'partnerName',
+          'subAgent', 'subAgentId', 'subAgentName', 'referral', 'referralAssociated', 'referral_associated',
+          'associated', 'associatedId', 'associatedModel', 'franchise', 'franchiseId'
+        ])
+        updated = updated.filter((col) => {
+          const key = String(col?.key || '').trim()
+          const label = String(col?.label || '').toLowerCase()
+          if (removeKeys.has(key)) return false
+          if (label.includes('partner')) return false
+          if (label.includes('referral')) return false
+          if (label.includes('associated')) return false
+          return true
+        })
         
         // Update codeUse label to 'DSA Code' if it exists
         updated = updated.map(col => {
@@ -135,18 +151,25 @@ const Leads = () => {
       { key: 'remarks', label: 'Remarks', visible: false, sortable: false },
       { key: 'createdAt', label: 'Date', visible: true, sortable: true },
       { key: 'actions', label: 'Actions', visible: true, sortable: false },
-    ].filter(col => col.key !== 'associated' && col.key !== 'franchise')
+    ].filter(col => col.key !== 'associated' && col.key !== 'franchise' && col.key !== 'agent' && col.key !== 'subAgent' && col.key !== 'agentName' && col.key !== 'subAgentName')
   })
 
   useEffect(() => {
-    // Filter out leadType, contact, caseNumber, verificationStatus, associated, and franchise columns before saving
+    // Filter out leadType, contact, caseNumber, verificationStatus, and Partner/Referral/Associated columns before saving
     const filteredConfig = columnConfig.filter(col => 
       col.key !== 'leadType' && 
       col.key !== 'contact' && 
       col.key !== 'caseNumber' && 
       col.key !== 'verificationStatus' &&
       col.key !== 'associated' &&
-      col.key !== 'franchise'
+      col.key !== 'franchise' &&
+      col.key !== 'agent' &&
+      col.key !== 'agentName' &&
+      col.key !== 'subAgent' &&
+      col.key !== 'subAgentName' &&
+      !String(col.label || '').toLowerCase().includes('partner') &&
+      !String(col.label || '').toLowerCase().includes('referral') &&
+      !String(col.label || '').toLowerCase().includes('associated')
     )
     // Normalize any legacy 'franchise' keys and labels, and ensure codeUse label is 'DSA Code'
     const normalized = filteredConfig.map(col => {
@@ -1049,7 +1072,8 @@ const Leads = () => {
   const statusOptions = [
     { value: 'all', label: 'All Status' },
     { value: 'logged', label: 'Logged' },
-    { value: 'sanctioned', label: 'Sanctioned' },
+    { value: 'legal_valuation_property_done', label: 'Legal valuation / property done' },
+    { value: 'sanctioned_branch_appointment_fixed', label: 'Sanctioned & branch appointment fixed' },
     { value: 'partial_disbursed', label: 'Partial Disbursed' },
     { value: 'disbursed', label: 'Disbursed' },
     { value: 'completed', label: 'Completed' },
@@ -1889,7 +1913,8 @@ const Leads = () => {
                                   {(lead.status || 'logged') === 'logged' && (
                                     <option value="logged">Logged</option>
                                   )}
-                                  <option value="sanctioned">Sanctioned</option>
+                                  <option value="legal_valuation_property_done">Legal valuation / property done</option>
+                                  <option value="sanctioned_branch_appointment_fixed">Sanctioned & branch appointment fixed</option>
                                   <option value="partial_disbursed">Partial Disbursed</option>
                                   <option value="disbursed">Disbursed</option>
                                   <option value="completed">Completed</option>

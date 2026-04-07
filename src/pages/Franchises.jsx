@@ -39,7 +39,7 @@ const Franchises = () => {
   const [isCreatingAgent, setIsCreatingAgent] = useState(false)
 
   useEffect(() => {
-    if (userRole === 'accounts_manager') return
+    if (userRole === 'accounts_manager' || userRole === 'regional_manager') return
     fetchFranchises()
     fetchLeads()
     fetchAgents()
@@ -218,7 +218,6 @@ const Franchises = () => {
         (franchise.name && franchise.name.toLowerCase().includes(searchLower)) ||
         (franchise.address?.city && franchise.address.city.toLowerCase().includes(searchLower)) ||
         (franchise.address?.state && franchise.address.state.toLowerCase().includes(searchLower)) ||
-        (franchise.ownerName && franchise.ownerName.toLowerCase().includes(searchLower)) ||
         (franchise.email && franchise.email.toLowerCase().includes(searchLower))
       const matchesStatus = statusFilter === 'all' || franchise.status === statusFilter
       const matchesCity = !cityFilter || (franchise.address?.city || '') === cityFilter
@@ -486,7 +485,7 @@ const Franchises = () => {
     { value: 'inactive', label: 'Inactive' },
   ]
 
-  if (userRole === 'accounts_manager') {
+  if (userRole === 'accounts_manager' || userRole === 'regional_manager') {
     return <Navigate to="/" replace />
   }
 
@@ -508,7 +507,6 @@ const Franchises = () => {
                   Email: f.email || 'N/A',
                   City: f.address?.city || 'N/A',
                   State: f.address?.state || 'N/A',
-                  Partners: stats.agents,
                   Leads: stats.leads,
                   Revenue: stats.revenue,
                   Status: f.status || 'N/A',
@@ -600,7 +598,7 @@ const Franchises = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" placeholder="Name, location, owner, email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                  <input type="text" placeholder="Name, location, email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                 </div>
               </div>
               <div>
@@ -656,18 +654,6 @@ const Franchises = () => {
                     {getSortIcon('address.city')}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Owner
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('totalAgents')}
-                >
-                  <div className="flex items-center gap-2">
-                    Agents
-                    {getSortIcon('totalAgents')}
-                  </div>
-                </th>
                 <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('totalLeads')}
@@ -703,13 +689,13 @@ const Franchises = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : sortedFranchises.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                     No franchises found
                   </td>
                 </tr>
@@ -725,12 +711,6 @@ const Franchises = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{franchise.address?.city || franchise.location || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{franchise.ownerName || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{stats.agents}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-primary-900">{stats.leads}</div>
@@ -856,10 +836,6 @@ const Franchises = () => {
                 <div className="mt-1">
                   <StatusBadge status={selectedFranchise.status} />
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Regional Manager</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedFranchise.regionalManager?.name || selectedFranchise.regionalManager || 'N/A'}</p>
               </div>
             </div>
 

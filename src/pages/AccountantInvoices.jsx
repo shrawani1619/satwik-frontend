@@ -69,7 +69,7 @@ const AccountantInvoices = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true)
-      const response = await api.invoices.getAll()
+      const response = await api.invoices.getAll({ page: 1, limit: 10000 })
       const invoicesData = response.data || response || []
       setInvoices(Array.isArray(invoicesData) ? invoicesData : [])
     } catch (error) {

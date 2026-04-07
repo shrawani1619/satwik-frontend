@@ -14,7 +14,8 @@ const PRESETS = [
 const LEAD_STATUSES = [
   { value: '', label: 'All' },
   { value: 'logged', label: 'Logged' },
-  { value: 'sanctioned', label: 'Sanctioned' },
+  { value: 'legal_valuation_property_done', label: 'Legal valuation / property done' },
+  { value: 'sanctioned_branch_appointment_fixed', label: 'Sanctioned & branch appointment fixed' },
   { value: 'partial_disbursed', label: 'Partial Disbursed' },
   { value: 'disbursed', label: 'Disbursed' },
   { value: 'completed', label: 'Completed' },

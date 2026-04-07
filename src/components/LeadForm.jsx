@@ -26,13 +26,13 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     bank: '',
     branch: '',
     
-    // Bank/Staff Details
-    smbName: '',
-    smbEmail: '',
-    smbMobile: '',
+    // SM/BM & ASM (matches backend lead.controller / lead.model)
+    smBmName: '',
+    smBmEmail: '',
+    smBmMobile: '',
     asmName: '',
     asmEmail: '',
-    asmContactNumber: '',
+    asmMobile: '',
     
     // Assignment
     agent: currentUserId,
@@ -42,6 +42,8 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     
     // Additional Fields
     advancePayment: false,
+    disbursedAmount: '',
+    advancePaymentDetails: '',
     remarks: '',
   })
 
@@ -99,7 +101,23 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
       // Additional
       advancePayment: !!lead.advancePayment,
+      disbursedAmount:
+        lead.disbursedAmount != null && lead.disbursedAmount !== ''
+          ? String(lead.disbursedAmount)
+          : '',
+      advancePaymentDetails: lead.advancePaymentDetails || '',
       remarks: lead.remarks || lead.remark || '',
+
+      // SM/BM (denormalized fields + populated contact)
+      smBmName:
+        (typeof lead.smBm === 'object' && lead.smBm?.name) || lead.smBmName || '',
+      smBmEmail: lead.smBmEmail || (typeof lead.smBm === 'object' && lead.smBm?.email) || '',
+      smBmMobile: lead.smBmMobile || (typeof lead.smBm === 'object' && lead.smBm?.mobile) || '',
+
+      // ASM
+      asmName: lead.asmName || '',
+      asmEmail: lead.asmEmail || '',
+      asmMobile: lead.asmMobile || '',
 
       // Keep these values consistent in case the backend requires them
       leadType: lead.leadType || prev.leadType,
@@ -169,9 +187,17 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       newValue = value.replace(/[^0-9]/g, '')
     }
     
-    if (name === 'applicantMobile') {
+    if (name === 'applicantMobile' || name === 'smBmMobile' || name === 'asmMobile') {
       // Only allow digits
       newValue = value.replace(/[^0-9]/g, '')
+    }
+
+    if (name === 'disbursedAmount') {
+      newValue = value.replace(/[^0-9.]/g, '')
+      const parts = newValue.split('.')
+      if (parts.length > 2) {
+        newValue = `${parts[0]}.${parts.slice(1).join('')}`
+      }
     }
     
     setFormData(prev => ({
@@ -203,6 +229,16 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       case 'aadhar':
         errorMessage = validateAadhaar(value)
         break
+      case 'smBmEmail':
+      case 'asmEmail':
+        errorMessage = validateEmail(value)
+        break
+      case 'smBmMobile':
+      case 'asmMobile':
+        if (value && !/^[0-9]{10}$/.test(value)) {
+          errorMessage = 'Please enter a valid 10-digit mobile number'
+        }
+        break
       default:
         break
     }
@@ -224,6 +260,15 @@ const LeadForm = ({ onClose, onSave, lead }) => {
         return
       }
 
+      if (formData.advancePayment) {
+        const raw = String(formData.disbursedAmount ?? '').trim().replace(/,/g, '')
+        if (raw === '' || Number.isNaN(parseFloat(raw))) {
+          toast.error('Enter disbursed amount (₹) when advance payment is Yes')
+          setLoading(false)
+          return
+        }
+      }
+
       // Prepare data for submission
       const submitData = {
         ...formData,
@@ -237,6 +282,19 @@ const LeadForm = ({ onClose, onSave, lead }) => {
           delete submitData[key]
         }
       })
+
+      if (submitData.advancePayment === false) {
+        submitData.advancePaymentDetails = null
+        if (!isEdit) {
+          submitData.disbursedAmount = 0
+        } else {
+          delete submitData.disbursedAmount
+        }
+      } else if (submitData.advancePayment === true) {
+        const raw = String(formData.disbursedAmount ?? '').replace(/,/g, '')
+        const d = parseFloat(raw)
+        submitData.disbursedAmount = !isNaN(d) && d >= 0 ? d : 0
+      }
 
       console.log('Submitting lead data:', submitData)
       const leadId = lead?._id || lead?.id
@@ -278,7 +336,6 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     { value: 'loan_against_property', label: 'Loan Against Property' },
     { value: 'education_loan', label: 'Education Loan' },
     { value: 'car_loan', label: 'Car Loan' },
-    { value: 'gold_loan', label: 'Gold Loan' },
   ]
 
   const residentialStatuses = [
@@ -490,6 +547,115 @@ const LeadForm = ({ onClose, onSave, lead }) => {
             </div>
           </div>
 
+          {/* SM / BM & ASM (bank coordination) */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">SM / BM details</h3>
+            <p className="text-sm text-gray-500">
+              Sales Manager / Branch Manager contact at the bank (optional but recommended for follow-ups).
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  name="smBmName"
+                  value={formData.smBmName}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="SM/BM name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  name="smBmEmail"
+                  value={formData.smBmEmail}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.smBmEmail ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="sm.bm@bank.com"
+                />
+                {errors.smBmEmail && (
+                  <p className="mt-1 text-xs text-red-600">{errors.smBmEmail}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
+                <input
+                  type="tel"
+                  name="smBmMobile"
+                  value={formData.smBmMobile}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.smBmMobile ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="9876543210"
+                  maxLength={10}
+                />
+                {errors.smBmMobile && (
+                  <p className="mt-1 text-xs text-red-600">{errors.smBmMobile}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">ASM details</h3>
+            <p className="text-sm text-gray-500">Area Sales Manager contact (optional).</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  name="asmName"
+                  value={formData.asmName}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="ASM name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  name="asmEmail"
+                  value={formData.asmEmail}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.asmEmail ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="asm@bank.com"
+                />
+                {errors.asmEmail && (
+                  <p className="mt-1 text-xs text-red-600">{errors.asmEmail}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
+                <input
+                  type="tel"
+                  name="asmMobile"
+                  value={formData.asmMobile}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.asmMobile ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="9876543210"
+                  maxLength={10}
+                />
+                {errors.asmMobile && (
+                  <p className="mt-1 text-xs text-red-600">{errors.asmMobile}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Additional Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Additional Information</h3>
@@ -502,12 +668,37 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                 <select
                   name="advancePayment"
                   value={formData.advancePayment.toString()}
-                  onChange={(e) => setFormData(prev => ({ ...prev, advancePayment: e.target.value === 'true' }))}
+                  onChange={(e) => {
+                    const yes = e.target.value === 'true'
+                    setFormData((prev) => ({
+                      ...prev,
+                      advancePayment: yes,
+                      ...(!yes
+                        ? { advancePaymentDetails: '', disbursedAmount: '' }
+                        : {}),
+                    }))
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
                   <option value="false">No</option>
                   <option value="true">Yes</option>
                 </select>
+              </div>
+
+              <div className={formData.advancePayment ? '' : 'opacity-60'}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Disbursed amount (₹) {formData.advancePayment && <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  name="disbursedAmount"
+                  value={formData.disbursedAmount}
+                  onChange={handleChange}
+                  disabled={!formData.advancePayment}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
+                  placeholder="0"
+                />
               </div>
             </div>
 
@@ -542,7 +733,13 @@ const LeadForm = ({ onClose, onSave, lead }) => {
           disabled={loading}
           className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Creating...' : 'Create Lead'}
+          {loading
+            ? isEdit
+              ? 'Saving...'
+              : 'Creating...'
+            : isEdit
+              ? 'Update Lead'
+              : 'Create Lead'}
         </button>
       </div>
     </form>

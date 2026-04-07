@@ -8,8 +8,13 @@ import StatCard from '../components/StatCard'
 import ConfirmModal from '../components/ConfirmModal'
 import { toast } from '../services/toastService'
 import { exportToExcel } from '../utils/exportExcel'
+import { authService } from '../services/auth.service'
 
 const Banks = () => {
+  const userRole = authService.getUser()?.role || ''
+  const canCreateBank = userRole === 'super_admin'
+  const canDeleteBank = userRole === 'super_admin'
+
   const [banks, setBanks] = useState([])
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
@@ -59,7 +64,9 @@ const Banks = () => {
   const activeBanks = banks.filter(b => b.status === 'active').length
   const totalLoans = leads.length
   // Active loans are those that are not completed or rejected
-  const activeLoans = leads.filter(l => ['logged', 'sanctioned', 'partial_disbursed', 'disbursed'].includes(l.status)).length
+  const activeLoans = leads.filter(l =>
+    ['logged', 'legal_valuation_property_done', 'sanctioned_branch_appointment_fixed', 'partial_disbursed', 'disbursed'].includes(l.status)
+  ).length
 
   // Get bank loan statistics
   const getBankLoanStats = (bankId) => {
@@ -75,7 +82,9 @@ const Banks = () => {
     return {
       total: bankLeads.length,
       // Active loans are those that are not completed or rejected
-      active: bankLeads.filter(l => ['logged', 'sanctioned', 'partial_disbursed', 'disbursed'].includes(l.status)).length,
+      active: bankLeads.filter(l =>
+        ['logged', 'legal_valuation_property_done', 'sanctioned_branch_appointment_fixed', 'partial_disbursed', 'disbursed'].includes(l.status)
+      ).length,
       completed: bankLeads.filter(l => l.status === 'completed').length,
     }
   }
@@ -269,7 +278,6 @@ const Banks = () => {
     { value: 'loan_against_property', label: 'Loan Against Property' },
     { value: 'education_loan', label: 'Education Loan' },
     { value: 'car_loan', label: 'Car Loan' },
-    { value: 'gold_loan', label: 'Gold Loan' },
   ]
 
   return (
@@ -308,13 +316,15 @@ const Banks = () => {
             <FileDown className="w-5 h-5" />
             <span>Export to Excel</span>
           </button>
-          <button
-            onClick={handleCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Create Bank</span>
-          </button>
+          {canCreateBank && (
+            <button
+              onClick={handleCreate}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Create Bank</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -530,13 +540,15 @@ const Banks = () => {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDeleteClick(bank)}
-                            className="text-red-600 hover:text-red-900 p-1"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canDeleteBank && (
+                            <button
+                              onClick={() => handleDeleteClick(bank)}
+                              className="text-red-600 hover:text-red-900 p-1"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -24,12 +24,16 @@ const FranchiseCommission = () => {
   const [isSaving, setIsSaving] = useState(false)
 
   const userRole = authService.getUser()?.role
-  const canAccess = userRole === 'super_admin' || userRole === 'accounts_manager'
+  const canAccess =
+    userRole === 'super_admin' || userRole === 'accounts_manager' || userRole === 'regional_manager'
+  const canCreateLimit = userRole === 'super_admin' || userRole === 'accounts_manager'
+  const canEditLimit =
+    userRole === 'super_admin' || userRole === 'accounts_manager' || userRole === 'regional_manager'
+  const canDeleteLimit = userRole === 'super_admin' || userRole === 'accounts_manager'
 
-  // Only allow super_admin and accounts_manager to access
   useEffect(() => {
     if (!canAccess) {
-      toast.error('Access Denied', 'Only administrators and accounts managers can access this page')
+      toast.error('Access Denied', 'Only administrators, accounts managers, and regional managers can access this page')
     }
   }, [canAccess])
 
@@ -204,7 +208,9 @@ const FranchiseCommission = () => {
     return (
       <div className="space-y-6 w-full max-w-full overflow-x-hidden">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-800 font-medium">Access Denied. Only administrators and accounts managers can access this page.</p>
+          <p className="text-red-800 font-medium">
+            Access Denied. Only administrators, accounts managers, and regional managers can access this page.
+          </p>
         </div>
       </div>
     )
@@ -218,13 +224,15 @@ const FranchiseCommission = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Commission Limits</h1>
           <p className="text-xs sm:text-sm text-gray-600 mt-1">Manage maximum commission limits for franchises by bank.</p>
         </div>
-        <button
-          onClick={handleCreate}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors text-sm font-medium"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Set Commission Limit</span>
-        </button>
+        {canCreateLimit && (
+          <button
+            onClick={handleCreate}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors text-sm font-medium"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Set Commission Limit</span>
+          </button>
+        )}
       </div>
 
       {/* Search */}
@@ -259,22 +267,32 @@ const FranchiseCommission = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created By
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                {(canEditLimit || canDeleteLimit) && (
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                  <td
+                    colSpan={canEditLimit || canDeleteLimit ? 5 : 4}
+                    className="px-6 py-8 text-center text-gray-500"
+                  >
                     Loading...
                   </td>
                 </tr>
               ) : filteredLimits.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                    No commission limits found. Click "Set Commission Limit" to create one.
+                  <td
+                    colSpan={canEditLimit || canDeleteLimit ? 5 : 4}
+                    className="px-6 py-8 text-center text-gray-500"
+                  >
+                    {canCreateLimit
+                      ? 'No commission limits found. Click "Set Commission Limit" to create one.'
+                      : 'No commission limits found.'}
                   </td>
                 </tr>
               ) : (
@@ -311,24 +329,30 @@ const FranchiseCommission = () => {
                           {limit.createdAt ? new Date(limit.createdAt).toLocaleDateString() : ''}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleEdit(limit)}
-                            className="text-gray-600 hover:text-gray-900 p-1"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(limit)}
-                            className="text-red-600 hover:text-red-900 p-1"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+                      {(canEditLimit || canDeleteLimit) && (
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end gap-2">
+                            {canEditLimit && (
+                              <button
+                                onClick={() => handleEdit(limit)}
+                                className="text-gray-600 hover:text-gray-900 p-1"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canDeleteLimit && (
+                              <button
+                                onClick={() => handleDelete(limit)}
+                                className="text-red-600 hover:text-red-900 p-1"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   )
                 })
@@ -349,7 +373,9 @@ const FranchiseCommission = () => {
           <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
             <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
             <p className="text-sm text-gray-500">No commission limits found.</p>
-            <p className="text-xs text-gray-400 mt-1">Click "Set Commission Limit" to create one.</p>
+            {canCreateLimit && (
+              <p className="text-xs text-gray-400 mt-1">Click &quot;Set Commission Limit&quot; to create one.</p>
+            )}
           </div>
         ) : (
           filteredLimits.map((limit, index) => {
@@ -372,22 +398,28 @@ const FranchiseCommission = () => {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <button
-                      onClick={() => handleEdit(limit)}
-                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(limit)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {(canEditLimit || canDeleteLimit) && (
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {canEditLimit && (
+                        <button
+                          onClick={() => handleEdit(limit)}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canDeleteLimit && (
+                        <button
+                          onClick={() => handleDelete(limit)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Card Details */}

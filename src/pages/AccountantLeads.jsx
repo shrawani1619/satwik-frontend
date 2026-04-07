@@ -33,7 +33,12 @@ const determineLoanStatus = (loanAmount, disbursedAmount, currentStatus) => {
     
     if (remaining === 0) return 'completed';
     if (disbursedAmount > 0 && remaining > 0) return 'partial_disbursed';
-    if (currentStatus === 'approved' || currentStatus === 'sanctioned') return 'approved';
+    if (
+      currentStatus === 'approved' ||
+      currentStatus === 'sanctioned_branch_appointment_fixed' ||
+      currentStatus === 'legal_valuation_property_done'
+    )
+      return 'approved';
     return currentStatus || 'processing';
 };
 
@@ -100,7 +105,11 @@ const AccountantLeads = () => {
                 page: 1,
                 limit: 100
             });
-            const leadsData = response?.data?.leads || response?.leads || [];
+            const payload = response?.data ?? response;
+            const leadsData =
+                payload?.leads ??
+                payload?.data?.leads ??
+                (Array.isArray(payload) ? payload : []);
             setLeads(Array.isArray(leadsData) ? leadsData : []);
         } catch (error) {
             console.error('Error fetching leads:', error);
@@ -440,7 +449,9 @@ const AccountantLeads = () => {
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
             case 'approved':
-            case 'sanctioned': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+            case 'legal_valuation_property_done':
+            case 'sanctioned_branch_appointment_fixed':
+                return 'bg-emerald-100 text-emerald-700 border-emerald-200';
             case 'disbursed': 
             case 'completed': return 'bg-blue-100 text-blue-700 border-blue-200';
             case 'partial_disbursed': return 'bg-cyan-100 text-cyan-700 border-cyan-200';
@@ -664,21 +675,6 @@ const AccountantLeads = () => {
 
                                         </div>
                                     </th>
-                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-2">
-                                            <span>Agent</span>
-                                        </div>
-                                    </th>
-                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-2">
-                                            <span>SubAgent</span>
-                                        </div>
-                                    </th>
-                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-2">
-                                            <span>Associated</span>
-                                        </div>
-                                    </th>
                                     <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('bank.name')}>
                                         <div className="flex items-center gap-2">
                                             <span>Bank</span>
@@ -803,15 +799,6 @@ const AccountantLeads = () => {
                                                 </td>
                                                 <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-bold text-blue-600 text-right font-mono">
                                                     {formatCurrency(lead.commissionAmount || 0)}
-                                                </td>
-                                                <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600">
-                                                    {lead.agentName || lead.agent?.name || 'N/A'}
-                                                </td>
-                                                <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600">
-                                                    {lead.subAgentName || lead.subAgent?.name || 'N/A'}
-                                                </td>
-                                                <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600">
-                                                    {lead.associated?.name || 'N/A'}
                                                 </td>
                                                 <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600">
                                                     {lead.bank?.name || lead.bankName || 'N/A'}
@@ -941,12 +928,13 @@ const AccountantLeads = () => {
                                                             <Trash2 size={16} />
                                                         </button>
                                                         <select
-                                                            value={lead.status || 'sanctioned'}
+                                                            value={lead.status || 'sanctioned_branch_appointment_fixed'}
                                                             onChange={(e) => handleStatusUpdate(lead._id, e.target.value)}
                                                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
                                                             onClick={(e) => e.stopPropagation()}
                                                         >
-                                                            <option value="sanctioned">Sanctioned</option>
+                                                            <option value="legal_valuation_property_done">Legal valuation / property done</option>
+                                                            <option value="sanctioned_branch_appointment_fixed">Sanctioned & branch appointment fixed</option>
                                                             <option value="partial_disbursed">Partial Disbursed</option>
                                                             <option value="disbursed">Disbursed</option>
                                                             <option value="completed">Completed</option>
