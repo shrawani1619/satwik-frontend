@@ -933,8 +933,8 @@ const AccountantLeads = () => {
                                                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
                                                             onClick={(e) => e.stopPropagation()}
                                                         >
-                                                            <option value="legal_valuation_property_done">Legal valuation / property done</option>
-                                                            <option value="sanctioned_branch_appointment_fixed">Sanctioned & branch appointment fixed</option>
+                                                            <option value="legal_valuation_property_done">Legal Valuation / Property Done</option>
+                                                            <option value="sanctioned_branch_appointment_fixed">Sanction and branch appointment are fixed</option>
                                                             <option value="partial_disbursed">Partial Disbursed</option>
                                                             <option value="disbursed">Disbursed</option>
                                                             <option value="completed">Completed</option>

@@ -3,11 +3,11 @@ const StatusBadge = ({ status }) => {
     logged: { color: 'bg-blue-100 text-blue-800', label: 'Logged' },
     legal_valuation_property_done: {
       color: 'bg-lime-100 text-lime-900',
-      label: 'Legal valuation / property done',
+      label: 'Legal Valuation / Property Done',
     },
     sanctioned_branch_appointment_fixed: {
       color: 'bg-purple-100 text-purple-800',
-      label: 'Sanctioned & branch appointment fixed',
+      label: 'Sanction and branch appointment are fixed',
     },
     partial_disbursed: { color: 'bg-orange-100 text-orange-800', label: 'Partial Disbursed' },
     disbursed: { color: 'bg-indigo-100 text-indigo-800', label: 'Disbursed' },

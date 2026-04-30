@@ -550,9 +550,6 @@ const LeadForm = ({ onClose, onSave, lead }) => {
           {/* SM / BM & ASM (bank coordination) */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">SM / BM details</h3>
-            <p className="text-sm text-gray-500">
-              Sales Manager / Branch Manager contact at the bank (optional but recommended for follow-ups).
-            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -605,7 +602,6 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">ASM details</h3>
-            <p className="text-sm text-gray-500">Area Sales Manager contact (optional).</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>

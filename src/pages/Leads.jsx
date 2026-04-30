@@ -689,6 +689,7 @@ const Leads = () => {
         disbursementType: formData.disbursementType || undefined,
         loanAccountNo: formData.loanAccountNo?.trim() || undefined,
         smBm: formData.smBmId || undefined,
+        smBmName: formData.smBmName?.trim() || undefined,
         smBmEmail: formData.smBmEmail?.trim() || undefined,
         smBmMobile: formData.smBmMobile?.trim() || undefined,
         asmName: formData.asmName?.trim() || undefined,
@@ -1072,8 +1073,8 @@ const Leads = () => {
   const statusOptions = [
     { value: 'all', label: 'All Status' },
     { value: 'logged', label: 'Logged' },
-    { value: 'legal_valuation_property_done', label: 'Legal valuation / property done' },
-    { value: 'sanctioned_branch_appointment_fixed', label: 'Sanctioned & branch appointment fixed' },
+    { value: 'legal_valuation_property_done', label: 'Legal Valuation / Property Done' },
+    { value: 'sanctioned_branch_appointment_fixed', label: 'Sanction and branch appointment are fixed' },
     { value: 'partial_disbursed', label: 'Partial Disbursed' },
     { value: 'disbursed', label: 'Disbursed' },
     { value: 'completed', label: 'Completed' },
@@ -1913,8 +1914,8 @@ const Leads = () => {
                                   {(lead.status || 'logged') === 'logged' && (
                                     <option value="logged">Logged</option>
                                   )}
-                                  <option value="legal_valuation_property_done">Legal valuation / property done</option>
-                                  <option value="sanctioned_branch_appointment_fixed">Sanctioned & branch appointment fixed</option>
+                                  <option value="legal_valuation_property_done">Legal Valuation / Property Done</option>
+                                  <option value="sanctioned_branch_appointment_fixed">Sanction and branch appointment are fixed</option>
                                   <option value="partial_disbursed">Partial Disbursed</option>
                                   <option value="disbursed">Disbursed</option>
                                   <option value="completed">Completed</option>
