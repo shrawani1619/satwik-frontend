@@ -302,10 +302,6 @@ const Invoices = () => {
         toast.error('Error', 'Lead is required')
         return
       }
-      if (!formData.agent) {
-        toast.error('Error', 'Partner is required')
-        return
-      }
       if (!formData.franchise) {
         toast.error('Error', 'Franchise is required')
         return

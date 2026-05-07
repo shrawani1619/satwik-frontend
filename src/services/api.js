@@ -15,6 +15,7 @@ const apiRequest = async (endpoint, options = {}) => {
       ...options.headers,
     },
     credentials: 'include', // Include cookies for authentication
+    cache: 'no-store',
   };
 
   // Debug log (remove in production)
@@ -291,8 +292,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-    generateFromLead: (leadId) => apiRequest(`/invoices/generate/${leadId}`, {
+    generateFromLead: (leadId, data = {}) => apiRequest(`/invoices/generate/${leadId}`, {
       method: 'POST',
+      body: JSON.stringify(data),
     }),
     update: (id, data) => apiRequest(`/invoices/${id}`, {
       method: 'PUT',

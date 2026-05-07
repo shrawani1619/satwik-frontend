@@ -65,20 +65,22 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
     doc.rect(x, y, w, h);
   };
 
-  // Determine receiver (Agent, SubAgent, or Franchise)
+  // Receiver Details should represent the lead creator party (franchise/admin), not payout payee.
+  const lead = invoiceData.lead || {};
+  const creator = lead.createdByResolved || lead.createdBy;
   let receiver = null;
-  if (invoiceData.invoiceType === 'sub_agent') {
-    // For SubAgent invoices, the receiver should be the SubAgent
-    receiver = invoiceData.subAgent;
-    // Fallback to agent only if subAgent is not populated (shouldn't happen, but safety check)
-    if (!receiver || (typeof receiver === 'object' && !receiver.name)) {
-      console.warn('⚠️ SubAgent invoice but subAgent not populated, falling back to agent');
-      receiver = invoiceData.agent;
+  if (creator && typeof creator === 'object') {
+    if (creator.role === 'franchise' && invoiceData.franchise && typeof invoiceData.franchise === 'object') {
+      receiver = invoiceData.franchise;
+    } else {
+      receiver = creator;
     }
-  } else if (invoiceData.invoiceType === 'agent') {
-    receiver = invoiceData.agent;
-  } else {
+  } else if (invoiceData.invoiceType === 'franchise') {
     receiver = invoiceData.franchise;
+  } else if (invoiceData.invoiceType === 'sub_agent') {
+    receiver = invoiceData.subAgent || invoiceData.agent;
+  } else {
+    receiver = invoiceData.agent;
   }
 
   // Determine if receiver is a "normal" (non-GST) user
@@ -145,7 +147,6 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
   const tdsRate = invoiceData.tdsPercentage ?? companySettings.taxConfig?.defaultTdsRate ?? 2;
 
   // Lead information
-  const lead = invoiceData.lead || {};
   const leadName = lead.customerName || lead.leadId || 'N/A';
   const bankName_lead = lead.bank?.name || 'N/A';
   const product = lead.loanType ? lead.loanType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A';

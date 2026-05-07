@@ -4,6 +4,21 @@ import api from '../services/api'
 import API_BASE_URL from '../config/api'
 import { toast } from '../services/toastService'
 
+/** Resolve franchise id like backend: associated Franchise or agent.managedBy franchise */
+function getLeadFranchiseId(lead) {
+  if (!lead) return null
+  const ass = lead.associated
+  if (lead.associatedModel === 'Franchise' && ass) {
+    return typeof ass === 'object' ? (ass._id || ass.id || ass) : ass
+  }
+  const agent = lead.agent
+  if (typeof agent === 'object' && agent?.managedByModel === 'Franchise' && agent?.managedBy) {
+    const mb = agent.managedBy
+    return typeof mb === 'object' ? (mb._id || mb.id || mb) : mb
+  }
+  return lead.franchise?._id || lead.franchise?.id || lead.franchise || lead.franchiseId || null
+}
+
 // Generate invoice number
 const generateInvoiceNumber = () => {
   const now = new Date()
@@ -189,14 +204,9 @@ const InvoiceForm = ({ invoice, onSave, onClose, leads = [] }) => {
     if (!invoice && !leadToValidate) {
       newErrors.leadId = 'Please select a valid lead'
     } else if (leadToValidate && !invoice) {
-      // Validate that lead has agent and franchise (only for new invoices)
-      const agentId = leadToValidate.agent?._id || leadToValidate.agent?.id || leadToValidate.agent || leadToValidate.agentId
-      const franchiseId = leadToValidate.franchise?._id || leadToValidate.franchise?.id || leadToValidate.franchise || leadToValidate.franchiseId
-      if (!agentId) {
-        newErrors.leadId = 'Selected lead must have a partner assigned'
-      }
+      const franchiseId = getLeadFranchiseId(leadToValidate)
       if (!franchiseId) {
-        newErrors.leadId = 'Selected lead must have a franchise assigned'
+        newErrors.leadId = 'Selected lead must be linked to a franchise (associate franchise or agent under a franchise)'
       }
     }
 
@@ -221,28 +231,23 @@ const InvoiceForm = ({ invoice, onSave, onClose, leads = [] }) => {
     const leadData = invoice?.lead || selectedLead
     const leadId = invoice?.lead?._id || invoice?.lead?.id || invoice?.lead || formData.leadId
     
-    // Extract agent and franchise IDs - handle both populated objects and IDs
-    let agentId, franchiseId
+    let franchiseId
     if (invoice) {
-      // When editing, get from invoice
-      agentId = invoice.agent?._id || invoice.agent?.id || invoice.agent
       franchiseId = invoice.franchise?._id || invoice.franchise?.id || invoice.franchise
     } else {
-      // When creating, get from selected lead
-      agentId = leadData?.agent?._id || leadData?.agent?.id || leadData?.agent || leadData?.agentId
-      franchiseId = leadData?.franchise?._id || leadData?.franchise?.id || leadData?.franchise || leadData?.franchiseId
+      franchiseId = getLeadFranchiseId(leadData)
     }
-    
-    if (!agentId || !franchiseId) {
-      toast.error('Error', 'Invoice must have both partner and franchise assigned')
+
+    if (!franchiseId) {
+      toast.error('Error', 'Could not resolve franchise for this lead')
       return
     }
-    
+
     const invoiceData = {
       invoiceNumber: invoice?.invoiceNumber || generateInvoiceNumber(),
       lead: leadId,
-      agent: agentId,
       franchise: franchiseId,
+      invoiceType: 'franchise',
       commissionAmount,
       gstAmount,
       tdsAmount,

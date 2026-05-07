@@ -103,14 +103,25 @@ const AccountantLeads = () => {
             const response = await api.accountant.getApprovedLeads({ 
                 search: searchTerm,
                 page: 1,
-                limit: 100
+                limit: 5000
             });
             const payload = response?.data ?? response;
             const leadsData =
                 payload?.leads ??
                 payload?.data?.leads ??
                 (Array.isArray(payload) ? payload : []);
-            setLeads(Array.isArray(leadsData) ? leadsData : []);
+            const arr = Array.isArray(leadsData) ? leadsData : [];
+            console.log('🔍 DEBUG: Accountant leads payload keys:', Object.keys(payload || {}));
+            console.log('🔍 DEBUG: Accountant leads count:', arr.length);
+            if (arr.length) {
+                console.log('🔍 DEBUG: First lead sample:', {
+                    id: arr[0]._id || arr[0].id,
+                    status: arr[0].status,
+                    loanAmount: arr[0].loanAmount,
+                    disbursedAmount: arr[0].disbursedAmount,
+                });
+            }
+            setLeads(arr);
         } catch (error) {
             console.error('Error fetching leads:', error);
             toast.error('Error', 'Failed to fetch approved leads');
@@ -837,7 +848,7 @@ const AccountantLeads = () => {
                                                 <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap">
                                                     {(() => {
                                                         const canGenerateInvoice =
-                                                            lead.status === 'disbursed' || lead.status === 'completed';
+                                                            lead.status === 'disbursed' || lead.status === 'completed'
                                                         const hasInvoice =
                                                             lead.hasInvoice || lead.hasAgentInvoice;
 
@@ -870,7 +881,17 @@ const AccountantLeads = () => {
                                                                             return;
                                                                         }
 
-                                                                        await api.invoices.generateFromLead(lead._id);
+                                                                        const manualInvoiceNo = window.prompt('Enter invoice number');
+                                                                        if (manualInvoiceNo == null) {
+                                                                            return;
+                                                                        }
+                                                                        const invoiceNumber = manualInvoiceNo.trim();
+                                                                        if (!invoiceNumber) {
+                                                                            toast.error('Error', 'Invoice number is required');
+                                                                            return;
+                                                                        }
+
+                                                                        await api.invoices.generateFromLead(lead._id, { invoiceNumber });
                                                                         toast.success(
                                                                             'Success',
                                                                             'Invoice generated successfully'
