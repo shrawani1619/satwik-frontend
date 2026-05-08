@@ -310,7 +310,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
     approve: (id) => apiRequest(`/invoices/${id}/approve`, { method: 'POST' }),
-    reject: (id) => apiRequest(`/invoices/${id}/reject`, { method: 'POST' }),
+    reject: (id, data = {}) => apiRequest(`/invoices/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   },
 
   // Payouts endpoints

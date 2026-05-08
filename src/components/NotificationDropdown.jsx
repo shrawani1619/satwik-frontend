@@ -4,6 +4,7 @@ import { Bell, Check, X, Image as ImageIcon } from 'lucide-react'
 import api from '../services/api'
 import Modal from './Modal'
 import StatusBadge from './StatusBadge'
+import { toast } from '../services/toastService'
 
 const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) => {
   const navigate = useNavigate()
@@ -11,6 +12,10 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
   const [loading, setLoading] = useState(false)
   const [selectedBanner, setSelectedBanner] = useState(null)
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false)
+  const [selectedNotification, setSelectedNotification] = useState(null)
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [isActionSubmitting, setIsActionSubmitting] = useState(false)
   const dropdownRef = useRef(null)
 
   useEffect(() => {
@@ -38,7 +43,7 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
     }
   }
 
-  const markAsRead = async (notificationId, bannerId) => {
+  const markAsRead = async (notificationId, bannerId = null, invoiceId = null) => {
     try {
       if (api.notifications?.markAsRead) {
         await api.notifications.markAsRead(notificationId)
@@ -87,6 +92,54 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
     }
   }
 
+  const handleNotificationClick = async (notification) => {
+    const notificationId = notification._id || notification.id
+    const bannerId = notification.relatedBannerId?._id || notification.relatedBannerId
+    const invoiceId = notification.relatedInvoiceId?._id || notification.relatedInvoiceId
+
+    if (bannerId) {
+      markAsRead(notificationId, bannerId, null)
+      return
+    }
+
+    await markAsRead(notificationId, null, invoiceId)
+    setSelectedNotification(notification)
+    setRejectionReason('')
+    setIsNotificationModalOpen(true)
+  }
+
+  const handleInvoiceRequestAction = async (action) => {
+    try {
+      const invoiceId =
+        selectedNotification?.relatedInvoiceId?._id ||
+        selectedNotification?.relatedInvoiceId
+      if (!invoiceId) {
+        toast.error('Error', 'Invoice not found for this notification')
+        return
+      }
+
+      if (action === 'reject' && !rejectionReason.trim()) {
+        toast.error('Error', 'Rejection reason is required')
+        return
+      }
+
+      setIsActionSubmitting(true)
+      if (action === 'approve') {
+        await api.invoices.approve(invoiceId)
+        toast.success('Success', 'Invoice approved successfully')
+      } else {
+        await api.invoices.reject(invoiceId, { rejectionReason: rejectionReason.trim() })
+        toast.success('Success', 'Invoice rejected successfully')
+      }
+      await fetchNotifications()
+    } catch (error) {
+      console.error(`Error while ${action}ing invoice from notification:`, error)
+      toast.error('Error', error?.message || `Failed to ${action} invoice`)
+    } finally {
+      setIsActionSubmitting(false)
+    }
+  }
+
   const markAllAsRead = async () => {
     try {
       if (api.notifications?.markAllAsRead) await api.notifications.markAllAsRead()
@@ -112,6 +165,9 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
   // Handle click outside to close
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // While any details modal is open, do not close dropdown on outside click.
+      if (isNotificationModalOpen || isBannerModalOpen) return
+
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         // Check if click is not on the notification bell button
         const bellButton = event.target.closest('button[title="Notifications"]')
@@ -186,20 +242,18 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
             {notifications.map((notification) => {
               const isUnread = !(notification.isRead ?? notification.read)
               const bannerId = notification.relatedBannerId?._id || notification.relatedBannerId
+              const invoiceId = notification.relatedInvoiceId?._id || notification.relatedInvoiceId
               const isBannerNotification = notification.type === 'banner_created' || !!bannerId
+              const isInvoiceNotification =
+                ['invoice_requested', 'invoice_approved', 'invoice_paid'].includes(notification.type) ||
+                !!invoiceId
               return (
                 <div
                   key={notification._id || notification.id}
                   className={`p-3 sm:p-4 hover:bg-gray-50 transition-colors ${
                     isUnread ? 'bg-blue-50/50 border-l-2 border-l-primary-900' : ''
-                  } ${bannerId ? 'cursor-pointer' : ''}`}
-                  onClick={() => {
-                    if (bannerId) {
-                      markAsRead(notification._id || notification.id, null, bannerId)
-                    } else {
-                      markAsRead(notification._id || notification.id)
-                    }
-                  }}
+                  } ${(bannerId || invoiceId) ? 'cursor-pointer' : ''}`}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
@@ -224,6 +278,12 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
                       {isBannerNotification && (
                         <p className="text-xs text-primary-900 mt-2 font-medium flex items-center gap-1">
                           Click to view banner details
+                          <span>→</span>
+                        </p>
+                      )}
+                      {isInvoiceNotification && !isBannerNotification && (
+                        <p className="text-xs text-primary-900 mt-2 font-medium flex items-center gap-1">
+                          Click to view notification details
                           <span>→</span>
                         </p>
                       )}
@@ -312,6 +372,94 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount, setUnreadCount }) 
                     <ImageIcon className="w-12 h-12 text-gray-400" />
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={isNotificationModalOpen}
+        onClose={() => {
+          setIsNotificationModalOpen(false)
+          setSelectedNotification(null)
+          setRejectionReason('')
+        }}
+        title="Notification Details"
+        size="md"
+        closeOnOverlay={false}
+      >
+        {selectedNotification && (
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-500">Title</label>
+              <p className="mt-1 text-sm text-gray-900">
+                {selectedNotification.title || 'Notification'}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-500">Message</label>
+              <p className="mt-1 text-sm text-gray-900">
+                {selectedNotification.message || 'No message available'}
+              </p>
+            </div>
+            {selectedNotification.createdAt && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Created At</label>
+                <p className="mt-1 text-sm text-gray-900">
+                  {new Date(selectedNotification.createdAt).toLocaleString('en-IN')}
+                </p>
+              </div>
+            )}
+            {selectedNotification.relatedInvoiceId && (
+              <div className="pt-2">
+                {selectedNotification.type === 'invoice_requested' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rejection reason (required only for reject)
+                      </label>
+                      <textarea
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                        rows={3}
+                        placeholder="Enter rejection reason"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleInvoiceRequestAction('approve')}
+                        className="px-3 py-2 text-sm rounded bg-green-600 text-white hover:bg-green-700"
+                        disabled={isActionSubmitting}
+                      >
+                        {isActionSubmitting ? 'Processing...' : 'Approve'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInvoiceRequestAction('reject')}
+                        className="px-3 py-2 text-sm rounded bg-red-600 text-white hover:bg-red-700"
+                        disabled={isActionSubmitting}
+                      >
+                        {isActionSubmitting ? 'Processing...' : 'Reject'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const invoiceId =
+                        selectedNotification.relatedInvoiceId?._id ||
+                        selectedNotification.relatedInvoiceId
+                      if (invoiceId) navigate(`/invoices?invoiceId=${invoiceId}`)
+                    }}
+                    className="px-3 py-2 text-sm rounded bg-primary-900 text-white hover:bg-primary-800"
+                  >
+                    Open Invoice
+                  </button>
+                )}
               </div>
             )}
           </div>

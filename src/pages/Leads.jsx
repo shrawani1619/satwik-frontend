@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Copy, Settings2, History, X, FileDown, CheckCircle, FileText, Paperclip, ExternalLink } from 'lucide-react'
+import { Plus, Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Copy, Settings2, History, X, Receipt, FileDown, CheckCircle, FileText, Paperclip, ExternalLink } from 'lucide-react'
 import api from '../services/api'
 import { authService } from '../services/auth.service'
 import StatusBadge from '../components/StatusBadge'
@@ -22,6 +22,7 @@ const Leads = () => {
   const canEdit = !isAgent
   const canCreate = true // Agents can create leads
   const canSendDisbursementEmail = userRole !== 'agent' // All roles except agent can send
+  const showInvoiceRequestColumn = userRole === 'franchise'
 
   // Render AccountantLeads for accountants
   if (isAccountant) {
@@ -469,6 +470,25 @@ const Leads = () => {
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
     }))
+  }
+
+  const handleInvoiceRequest = async (lead, event = null) => {
+    if (event) event.stopPropagation()
+    try {
+      const leadId = lead.id || lead._id
+      const manualInvoiceNo = window.prompt('Enter invoice number')
+      if (manualInvoiceNo == null) return
+      const invoiceNumber = manualInvoiceNo.trim()
+      if (!invoiceNumber) {
+        toast.error('Error', 'Invoice number is required')
+        return
+      }
+      await api.invoices.generateFromLead(leadId, { invoiceNumber })
+      toast.success('Success', 'Invoice requested successfully (pending accountant approval)')
+    } catch (error) {
+      console.error('Error generating invoice:', error)
+      toast.error('Error', error?.message || 'Failed to generate invoice')
+    }
   }
 
   const getSortIcon = (key) => {
@@ -1377,18 +1397,23 @@ const Leads = () => {
                     </div>
                   </th>
                 ))}
+                {showInvoiceRequestColumn && (
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Invoice Request
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white">
               {loading ? (
                 <tr className="border-b border-gray-200">
-                  <td colSpan={visibleColumns.length} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={visibleColumns.length + (showInvoiceRequestColumn ? 1 : 0)} className="px-6 py-8 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : sortedLeads.length === 0 ? (
                 <tr className="border-b border-gray-200">
-                  <td colSpan={visibleColumns.length} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={visibleColumns.length + (showInvoiceRequestColumn ? 1 : 0)} className="px-6 py-8 text-center text-gray-500">
                     No leads found
                   </td>
                 </tr>
@@ -1940,6 +1965,21 @@ const Leads = () => {
                           {renderCell(col)}
                         </td>
                       ))}
+                      {showInvoiceRequestColumn && (
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {(lead.status === 'disbursed' || lead.status === 'completed') ? (
+                            <button
+                              onClick={(e) => handleInvoiceRequest(lead, e)}
+                              className="text-purple-700 hover:text-purple-900 p-1"
+                              title="Request invoice approval"
+                            >
+                              <Receipt className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   )
                 })
@@ -2057,6 +2097,15 @@ const Leads = () => {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
+                        {userRole === 'franchise' && (lead.status === 'disbursed' || lead.status === 'completed') && (
+                          <button
+                            onClick={(e) => handleInvoiceRequest(lead, e)}
+                            className="text-purple-700 hover:text-purple-900 p-2"
+                            title="Request invoice approval"
+                          >
+                            <Receipt className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation()

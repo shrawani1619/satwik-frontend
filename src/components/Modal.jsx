@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import { useEffect } from 'react'
 
-const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
+const Modal = ({ isOpen, onClose, title, children, size = 'md', closeOnOverlay = true }) => {
   useEffect(() => {
     // Prevent body scroll when modal is open
     if (isOpen) {
@@ -29,7 +29,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
       {/* Background overlay */}
       <div
         className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-        onClick={onClose}
+        onClick={closeOnOverlay ? onClose : undefined}
       ></div>
 
       {/* Modal panel */}
