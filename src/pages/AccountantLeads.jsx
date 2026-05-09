@@ -69,6 +69,10 @@ const AccountantLeads = () => {
     const [confirmDeleteLead, setConfirmDeleteLead] = useState({ isOpen: false, lead: null });
     const [isDisbursementEmailModalOpen, setIsDisbursementEmailModalOpen] = useState(false);
     const [selectedLeadForEmail, setSelectedLeadForEmail] = useState(null);
+    const [isInvoiceNumberModalOpen, setIsInvoiceNumberModalOpen] = useState(false);
+    const [invoiceNumberInput, setInvoiceNumberInput] = useState('');
+    const [invoiceRequestLead, setInvoiceRequestLead] = useState(null);
+    const [isInvoiceRequestSubmitting, setIsInvoiceRequestSubmitting] = useState(false);
         
     const [viewLeadData, setViewLeadData] = useState(null);
     const [selectedLead, setSelectedLead] = useState(null);
@@ -301,6 +305,40 @@ const AccountantLeads = () => {
     const handleDisbursementEmail = (lead) => {
         setSelectedLeadForEmail(lead);
         setIsDisbursementEmailModalOpen(true);
+    };
+
+    const openInvoiceNumberModal = (lead) => {
+        setInvoiceRequestLead(lead);
+        setInvoiceNumberInput('');
+        setIsInvoiceNumberModalOpen(true);
+    };
+
+    const submitInvoiceRequest = async () => {
+        try {
+            const leadId = invoiceRequestLead?._id || invoiceRequestLead?.id;
+            if (!leadId) {
+                toast.error('Error', 'Lead not found');
+                return;
+            }
+            const invoiceNumber = invoiceNumberInput.trim();
+            if (!invoiceNumber) {
+                toast.error('Error', 'Invoice number is required');
+                return;
+            }
+
+            setIsInvoiceRequestSubmitting(true);
+            await api.invoices.generateFromLead(leadId, { invoiceNumber });
+            toast.success('Success', 'Invoice generated successfully');
+            setIsInvoiceNumberModalOpen(false);
+            setInvoiceRequestLead(null);
+            setInvoiceNumberInput('');
+            await fetchLeads();
+        } catch (error) {
+            console.error('Error generating invoice:', error);
+            toast.error('Error', error.message || 'Failed to generate invoice');
+        } finally {
+            setIsInvoiceRequestSubmitting(false);
+        }
     };
 
     const handleDeleteInstallment = (leadId, installmentId) => {
@@ -880,23 +918,7 @@ const AccountantLeads = () => {
                                                                             );
                                                                             return;
                                                                         }
-
-                                                                        const manualInvoiceNo = window.prompt('Enter invoice number');
-                                                                        if (manualInvoiceNo == null) {
-                                                                            return;
-                                                                        }
-                                                                        const invoiceNumber = manualInvoiceNo.trim();
-                                                                        if (!invoiceNumber) {
-                                                                            toast.error('Error', 'Invoice number is required');
-                                                                            return;
-                                                                        }
-
-                                                                        await api.invoices.generateFromLead(lead._id, { invoiceNumber });
-                                                                        toast.success(
-                                                                            'Success',
-                                                                            'Invoice generated successfully'
-                                                                        );
-                                                                        await fetchLeads();
+                                                                        openInvoiceNumberModal(lead);
                                                                     } catch (error) {
                                                                         console.error('Error generating invoice:', error);
                                                                         toast.error(
@@ -1225,6 +1247,57 @@ const AccountantLeads = () => {
                         </div>
                     </div>
                 )}
+
+                <Modal
+                    isOpen={isInvoiceNumberModalOpen}
+                    onClose={() => {
+                        setIsInvoiceNumberModalOpen(false);
+                        setInvoiceRequestLead(null);
+                        setInvoiceNumberInput('');
+                    }}
+                    title="Generate Invoice"
+                    size="sm"
+                    closeOnOverlay={false}
+                >
+                    <div className="space-y-4 p-1">
+                        <p className="text-sm text-gray-600">
+                            Enter invoice number for <span className="font-semibold text-gray-900">{invoiceRequestLead?.customerName || 'selected lead'}</span>.
+                        </p>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
+                            <input
+                                type="text"
+                                value={invoiceNumberInput}
+                                onChange={(e) => setInvoiceNumberInput(e.target.value)}
+                                placeholder="Enter invoice number"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                autoFocus
+                            />
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsInvoiceNumberModalOpen(false);
+                                    setInvoiceRequestLead(null);
+                                    setInvoiceNumberInput('');
+                                }}
+                                className="px-3 py-2 text-sm rounded border border-gray-300 hover:bg-gray-50"
+                                disabled={isInvoiceRequestSubmitting}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={submitInvoiceRequest}
+                                className="px-3 py-2 text-sm rounded bg-primary-900 text-white hover:bg-primary-800"
+                                disabled={isInvoiceRequestSubmitting}
+                            >
+                                {isInvoiceRequestSubmitting ? 'Generating...' : 'Generate'}
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
 
                 {/* Edit Lead Modal */}
                 <Modal
