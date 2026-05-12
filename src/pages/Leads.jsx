@@ -22,7 +22,7 @@ const Leads = () => {
   const canEdit = !isAgent
   const canCreate = true // Agents can create leads
   const canSendDisbursementEmail = userRole !== 'agent' // All roles except agent can send
-  const showInvoiceRequestColumn = userRole === 'franchise'
+  const showInvoiceRequestColumn = ['franchise', 'super_admin'].includes(userRole)
 
   // Render AccountantLeads for accountants
   if (isAccountant) {
@@ -522,13 +522,28 @@ const Leads = () => {
       .toLowerCase()
 
     const hasInvoiceRequest = Boolean(lead?.invoice || lead?.isInvoiceGenerated || rawStatus)
-    const canGenerate = lead?.status === 'disbursed' || lead?.status === 'completed'
+    const statusEligible =
+      lead?.status === 'partial_disbursed' ||
+      lead?.status === 'partial disbursed' ||
+      lead?.status === 'disbursed' ||
+      lead?.status === 'completed'
+    const thresholdPct = Number(lead?.bank?.disbursementThresholdPercentage ?? 0)
+    const safeThresholdPct = Number.isFinite(thresholdPct) ? Math.min(Math.max(thresholdPct, 0), 100) : 0
+    const loanAmount = Number(lead?.loanAmount ?? lead?.amount ?? 0)
+    const disbursedAmount = Number(lead?.disbursedAmount ?? 0)
+    const disbursedPct = loanAmount > 0 ? (disbursedAmount / loanAmount) * 100 : 0
+    const thresholdEligible = disbursedPct >= safeThresholdPct
+    const canGenerate = statusEligible && thresholdEligible
 
     if (!hasInvoiceRequest) {
+      const blockedReason = !statusEligible
+        ? 'Lead status must be Partial Disbursed, Disbursed, or Completed'
+        : `Disbursement ${disbursedPct.toFixed(2)}% / required ${safeThresholdPct.toFixed(2)}%`
       return {
         type: 'action',
         enabled: canGenerate,
         label: canGenerate ? 'Generate Invoice' : 'Not Ready',
+        reason: canGenerate ? 'Generate invoice' : blockedReason,
       }
     }
 
@@ -2044,7 +2059,7 @@ const Leads = () => {
                                         ? 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
                                         : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
                                     }`}
-                                    title="Generate invoice"
+                                    title={invoiceUi.reason || 'Generate invoice'}
                                   >
                                     <Receipt className="w-3.5 h-3.5" />
                                     <span className="whitespace-nowrap">{invoiceUi.label}</span>
@@ -2180,15 +2195,20 @@ const Leads = () => {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        {userRole === 'franchise' && (lead.status === 'disbursed' || lead.status === 'completed') && (
-                          <button
-                            onClick={(e) => handleInvoiceRequest(lead, e)}
-                            className="text-purple-700 hover:text-purple-900 p-2"
-                            title="Request invoice approval"
-                          >
-                            <Receipt className="w-4 h-4" />
-                          </button>
-                        )}
+                        {(() => {
+                          if (!['franchise', 'super_admin'].includes(userRole)) return null
+                          const invoiceUi = getInvoiceRequestUi(lead)
+                          if (invoiceUi.type !== 'action' || !invoiceUi.enabled) return null
+                          return (
+                            <button
+                              onClick={(e) => handleInvoiceRequest(lead, e)}
+                              className="text-purple-700 hover:text-purple-900 p-2"
+                              title={invoiceUi.reason || 'Generate invoice'}
+                            >
+                              <Receipt className="w-4 h-4" />
+                            </button>
+                          )
+                        })()}
                         <button
                           onClick={(e) => {
                             e.stopPropagation()

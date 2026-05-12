@@ -885,14 +885,35 @@ const AccountantLeads = () => {
                                                 </td>
                                                 <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap">
                                                     {(() => {
-                                                        const canGenerateInvoice =
-                                                            lead.status === 'disbursed' || lead.status === 'completed'
+                                                        const statusEligible =
+                                                            lead.status === 'partial_disbursed' ||
+                                                            lead.status === 'partial disbursed' ||
+                                                            lead.status === 'disbursed' ||
+                                                            lead.status === 'completed';
+                                                        const thresholdPct = Number(lead?.bank?.disbursementThresholdPercentage ?? 0);
+                                                        const safeThresholdPct = Number.isFinite(thresholdPct)
+                                                            ? Math.min(Math.max(thresholdPct, 0), 100)
+                                                            : 0;
+                                                        const disbursedPct = loanAmountValue > 0
+                                                            ? (disbursedAmount / loanAmountValue) * 100
+                                                            : 0;
+                                                        const thresholdEligible = disbursedPct >= safeThresholdPct;
+                                                        const canGenerateInvoice = statusEligible && thresholdEligible;
                                                         const hasInvoice =
                                                             lead.hasInvoice || lead.hasAgentInvoice;
 
                                                         if (!canGenerateInvoice) {
                                                             return (
-                                                                <span className="text-xs text-gray-400">N/A</span>
+                                                                <span
+                                                                  className="text-xs text-gray-400"
+                                                                  title={
+                                                                    !statusEligible
+                                                                      ? 'Lead status must be Partial Disbursed, Disbursed, or Completed'
+                                                                      : `Disbursement ${disbursedPct.toFixed(2)}% / required ${safeThresholdPct.toFixed(2)}%`
+                                                                  }
+                                                                >
+                                                                  N/A
+                                                                </span>
                                                             );
                                                         }
 

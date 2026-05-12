@@ -214,6 +214,10 @@ const Banks = () => {
           type: formData.type || 'bank',
           loanTypes: formData.loanTypes || [],
           status: formData.status || 'active',
+          disbursementThresholdPercentage:
+            formData.disbursementThresholdPercentage === ''
+              ? 0
+              : Number(formData.disbursementThresholdPercentage ?? 0),
         };
 
         const response = await api.banks.create(bankData)
@@ -300,6 +304,7 @@ const Banks = () => {
                   Email: bank.contactEmail || bank.email || 'N/A',
                   'Contact Mobile': bank.contactMobile || 'N/A',
                   Type: bank.type || 'N/A',
+                  'Disbursement Threshold %': Number(bank.disbursementThresholdPercentage ?? 0),
                   'Total Loans': stats.total,
                   'Active Loans': stats.active,
                   Completed: stats.completed,
@@ -466,6 +471,15 @@ const Banks = () => {
                 </th>
                 <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('disbursementThresholdPercentage')}
+                >
+                  <div className="flex items-center gap-2">
+                    Threshold %
+                    {getSortIcon('disbursementThresholdPercentage')}
+                  </div>
+                </th>
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center gap-2">
@@ -481,13 +495,13 @@ const Banks = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : sortedBanks.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
                     No banks found
                   </td>
                 </tr>
@@ -520,6 +534,11 @@ const Banks = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-primary-900">{loanStats.active}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {Number(bank.disbursementThresholdPercentage ?? 0).toFixed(2)}%
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusBadge status={bank.status} />
@@ -611,6 +630,12 @@ const Banks = () => {
                 <div className="mt-1">
                   <StatusBadge status={selectedBank.status} />
                 </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Disbursement Threshold %</label>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {Number(selectedBank.disbursementThresholdPercentage ?? 0).toFixed(2)}%
+                </p>
               </div>
             </div>
 

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Image as ImageIcon, TrendingUp, FileText, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Image as ImageIcon, TrendingUp, FileText, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import api from '../services/api'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
@@ -176,6 +176,35 @@ const Banners = () => {
     } catch (error) {
       console.error('Error deleting banner:', error)
       toast.error('Error', error.message || 'Failed to delete banner')
+    }
+  }
+
+  const handleDownload = async (banner) => {
+    const url = banner?.attachment
+    if (!url) {
+      toast.error('Error', 'Banner file URL not found')
+      return
+    }
+    try {
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Failed to download file (${response.status})`)
+      }
+
+      const blob = await response.blob()
+      const objectUrl = window.URL.createObjectURL(blob)
+
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = banner?.fileName || `${banner?.name || 'banner'}.jpg`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(objectUrl)
+    } catch (error) {
+      // Fallback: open source URL in new tab if blob download is blocked by remote CORS
+      window.open(url, '_blank', 'noopener,noreferrer')
+      toast.error('Download', error?.message || 'Direct download blocked; opened file in new tab.')
     }
   }
 
@@ -371,6 +400,13 @@ const Banners = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
+                          <button
+                            onClick={() => handleDownload(banner)}
+                            className="text-blue-600 hover:text-blue-800 p-1"
+                            title="Download"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
                           {isAdmin && (
                             <>
                               <button
@@ -486,6 +522,14 @@ const Banners = () => {
                     <ImageIcon className="w-12 h-12 text-gray-400" />
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => handleDownload(selectedBanner)}
+                  className="mt-3 inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Banner
+                </button>
               </div>
             )}
 

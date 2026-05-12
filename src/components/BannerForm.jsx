@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Upload, X, Image as ImageIcon } from 'lucide-react'
+import { Upload, X, Image as ImageIcon, ChevronDown, Search, Check } from 'lucide-react'
 import api from '../services/api'
 import { toast } from '../services/toastService'
 
@@ -7,19 +7,50 @@ const BannerForm = ({ banner, onSave, onClose }) => {
   const [formData, setFormData] = useState({
     name: '',
     status: 'active',
+    visibleToUsers: [],
   })
 
   const [attachment, setAttachment] = useState(null)
   const [attachmentPreview, setAttachmentPreview] = useState(null)
   const [pendingFile, setPendingFile] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const [users, setUsers] = useState([])
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
+  const [userSearch, setUserSearch] = useState('')
   const [errors, setErrors] = useState({})
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const response = await api.users.getAll({ limit: 10000 })
+        const payload = response?.data ?? response
+        const list = Array.isArray(payload) ? payload : payload?.users || payload?.data || []
+        const normalized = (Array.isArray(list) ? list : [])
+          .filter((u) => u && (u._id || u.id))
+          .map((u) => ({
+            id: u._id || u.id,
+            name: u.name || u.email || 'Unnamed User',
+            email: u.email || '',
+            role: u.role || '',
+            status: u.status || 'active',
+          }))
+          .filter((u) => u.status === 'active')
+        setUsers(normalized)
+      } catch (error) {
+        console.error('Failed to load users for banner visibility:', error)
+      }
+    }
+    loadUsers()
+  }, [])
 
   useEffect(() => {
     if (banner) {
       setFormData({
         name: banner.name || '',
         status: banner.status || 'active',
+        visibleToUsers: Array.isArray(banner.visibleToUsers)
+          ? banner.visibleToUsers.map((u) => (u?._id || u?.id || u)).filter(Boolean)
+          : [],
       })
       if (banner.attachment) {
         setAttachmentPreview(banner.attachment)
@@ -28,6 +59,7 @@ const BannerForm = ({ banner, onSave, onClose }) => {
       setFormData({
         name: '',
         status: 'active',
+        visibleToUsers: [],
       })
       setAttachment(null)
       setAttachmentPreview(null)
@@ -42,6 +74,9 @@ const BannerForm = ({ banner, onSave, onClose }) => {
     }
     if (!attachment && !attachmentPreview && !pendingFile) {
       newErrors.attachment = 'Banner attachment is required'
+    }
+    if (!Array.isArray(formData.visibleToUsers) || formData.visibleToUsers.length === 0) {
+      newErrors.visibleToUsers = 'Please select at least one user who can view this banner'
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -141,6 +176,7 @@ const BannerForm = ({ banner, onSave, onClose }) => {
           name: formData.name.trim(),
           attachment: PLACEHOLDER_URL,
           status: formData.status,
+          visibleToUsers: formData.visibleToUsers,
         }
         
         const createResponse = await api.banners.create(initialData)
@@ -175,6 +211,7 @@ const BannerForm = ({ banner, onSave, onClose }) => {
           fileSize: pendingFile.size,
           mimeType: pendingFile.type,
           status: formData.status,
+          visibleToUsers: formData.visibleToUsers,
         }
 
         await api.banners.update(newBanner._id || newBanner.id, updateData)
@@ -220,6 +257,7 @@ const BannerForm = ({ banner, onSave, onClose }) => {
       fileSize: attachmentData.fileSize,
       mimeType: attachmentData.mimeType,
       status: formData.status,
+      visibleToUsers: formData.visibleToUsers,
     }
 
     onSave(submitData)
@@ -234,6 +272,29 @@ const BannerForm = ({ banner, onSave, onClose }) => {
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }))
+    }
+  }
+
+  const filteredUsers = users.filter((u) => {
+    const q = userSearch.trim().toLowerCase()
+    if (!q) return true
+    return (
+      String(u.name || '').toLowerCase().includes(q) ||
+      String(u.email || '').toLowerCase().includes(q) ||
+      String(u.role || '').toLowerCase().includes(q)
+    )
+  })
+
+  const toggleUserSelection = (userId) => {
+    setFormData((prev) => {
+      const exists = prev.visibleToUsers.includes(userId)
+      const next = exists
+        ? prev.visibleToUsers.filter((id) => id !== userId)
+        : [...prev.visibleToUsers, userId]
+      return { ...prev, visibleToUsers: next }
+    })
+    if (errors.visibleToUsers) {
+      setErrors((prev) => ({ ...prev, visibleToUsers: '' }))
     }
   }
 
@@ -349,6 +410,100 @@ const BannerForm = ({ banner, onSave, onClose }) => {
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
+      </div>
+
+      <div className="relative">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Users who can view/download <span className="text-red-500">*</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => setUserDropdownOpen((v) => !v)}
+          className={`w-full px-3 py-2 border rounded-lg bg-white flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+            errors.visibleToUsers ? 'border-red-500' : 'border-gray-300'
+          }`}
+        >
+          <span className="text-sm text-gray-700">
+            {formData.visibleToUsers.length
+              ? `${formData.visibleToUsers.length} user(s) selected`
+              : 'Select users'}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {formData.visibleToUsers.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {formData.visibleToUsers.slice(0, 4).map((id) => {
+              const u = users.find((x) => x.id === id)
+              if (!u) return null
+              return (
+                <span key={id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-primary-50 text-primary-800 border border-primary-200">
+                  {u.name}
+                </span>
+              )
+            })}
+            {formData.visibleToUsers.length > 4 && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700 border border-gray-200">
+                +{formData.visibleToUsers.length - 4} more
+              </span>
+            )}
+          </div>
+        )}
+
+        {userDropdownOpen && (
+          <div className="absolute z-20 mt-2 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="p-2 border-b border-gray-100">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Search user, email, role..."
+                  className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+            <div className="max-h-52 overflow-y-auto p-1">
+              {filteredUsers.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-gray-500">No users found</p>
+              ) : (
+                filteredUsers.map((u, idx) => {
+                  const selected = formData.visibleToUsers.includes(u.id)
+                  const rowTone = idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => toggleUserSelection(u.id)}
+                      className={`w-full px-3 py-2 rounded-md text-left text-sm flex items-center justify-between ${
+                        selected ? 'bg-primary-100 text-primary-900' : `${rowTone} hover:bg-gray-100 text-gray-700`
+                      }`}
+                    >
+                      <span className="truncate pr-3">
+                        {u.name} ({u.role}) {u.email ? `- ${u.email}` : ''}
+                      </span>
+                      {selected && <Check className="w-4 h-4 flex-shrink-0" />}
+                    </button>
+                  )
+                })
+              )}
+            </div>
+            <div className="p-2 border-t border-gray-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setUserDropdownOpen(false)}
+                className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+        <p className="mt-1 text-xs text-gray-500">
+          Click to open dropdown and select multiple users.
+        </p>
+        {errors.visibleToUsers && <p className="mt-1 text-sm text-red-600">{errors.visibleToUsers}</p>}
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">

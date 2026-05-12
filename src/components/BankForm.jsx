@@ -15,6 +15,7 @@ const BankForm = ({ bank, onSave, onClose }) => {
     loanTypes: [],
     type: 'bank',
     status: 'active',
+    disbursementThresholdPercentage: 0,
   })
 
   const [errors, setErrors] = useState({})
@@ -26,6 +27,10 @@ const BankForm = ({ bank, onSave, onClose }) => {
         loanTypes: bank.loanTypes || [],
         type: bank.type || 'bank',
         status: bank.status || 'active',
+        disbursementThresholdPercentage:
+          typeof bank.disbursementThresholdPercentage === 'number'
+            ? bank.disbursementThresholdPercentage
+            : 0,
       })
     } else {
       setFormData({
@@ -33,6 +38,7 @@ const BankForm = ({ bank, onSave, onClose }) => {
         loanTypes: [],
         type: 'bank',
         status: 'active',
+        disbursementThresholdPercentage: 0,
       })
     }
   }, [bank])
@@ -41,6 +47,10 @@ const BankForm = ({ bank, onSave, onClose }) => {
     const newErrors = {}
     if (!formData.name || !formData.name.trim()) newErrors.name = 'Bank name is required'
     if (!formData.loanTypes || formData.loanTypes.length === 0) newErrors.loanTypes = 'Please select at least one loan type'
+    const threshold = Number(formData.disbursementThresholdPercentage)
+    if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {
+      newErrors.disbursementThresholdPercentage = 'Disbursement Threshold % must be between 0 and 100'
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -117,6 +127,39 @@ const BankForm = ({ bank, onSave, onClose }) => {
           })}
         </div>
         {errors.loanTypes && <p className="mt-1 text-sm text-red-600">{errors.loanTypes}</p>}
+      </div>
+
+      {/* Disbursement threshold for invoice eligibility */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Disbursement Threshold % <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="number"
+          min="0"
+          max="100"
+          step="0.01"
+          value={formData.disbursementThresholdPercentage}
+          onChange={(e) => {
+            setFormData((prev) => ({
+              ...prev,
+              disbursementThresholdPercentage: e.target.value === '' ? '' : Number(e.target.value),
+            }))
+            if (errors.disbursementThresholdPercentage) {
+              setErrors((prev) => ({ ...prev, disbursementThresholdPercentage: '' }))
+            }
+          }}
+          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+            errors.disbursementThresholdPercentage ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="e.g. 30"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Invoice generation is allowed only when disbursed % reaches this threshold.
+        </p>
+        {errors.disbursementThresholdPercentage && (
+          <p className="mt-1 text-sm text-red-600">{errors.disbursementThresholdPercentage}</p>
+        )}
       </div>
 
       {/* Footer Buttons */}
