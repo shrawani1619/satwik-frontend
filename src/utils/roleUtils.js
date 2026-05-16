@@ -77,3 +77,10 @@ export const getCurrentUserRole = () => {
 export const canExportData = () => {
   return hasAnyRole(['accounts_manager', 'super_admin']);
 };
+
+/**
+ * Leads page: export to Excel (full or filtered), scoped by role on the API.
+ */
+export const canExportLeads = () => {
+  return hasAnyRole(['super_admin', 'franchise', 'regional_manager']);
+};

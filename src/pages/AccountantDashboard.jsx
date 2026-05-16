@@ -341,7 +341,7 @@ const AccountantDashboard = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="text-sm font-bold text-gray-900">{lead.amount}</div>
-                                                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${['Logged', 'logged'].includes(lead.status) ? 'bg-orange-100 text-orange-700' :
+                                                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${['Logged', 'logged', 'inquiry'].includes(lead.status) ? 'bg-orange-100 text-orange-700' :
                                                         ['legal_valuation_property_done', 'sanctioned_branch_appointment_fixed'].includes(lead.status) ? 'bg-lime-100 text-lime-700' :
                                                             ['Disbursed', 'disbursed', 'Partial_disbursed', 'partial_disbursed'].includes(lead.status) ? 'bg-blue-100 text-blue-700' :
                                                                 ['Completed', 'completed'].includes(lead.status) ? 'bg-green-100 text-green-700' :

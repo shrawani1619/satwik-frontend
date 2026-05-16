@@ -65,7 +65,7 @@ const Banks = () => {
   const totalLoans = leads.length
   // Active loans are those that are not completed or rejected
   const activeLoans = leads.filter(l =>
-    ['logged', 'legal_valuation_property_done', 'sanctioned_branch_appointment_fixed', 'partial_disbursed', 'disbursed'].includes(l.status)
+    ['logged', 'inquiry', 'legal_valuation_property_done', 'sanctioned_branch_appointment_fixed', 'partial_disbursed', 'disbursed'].includes(l.status)
   ).length
 
   // Get bank loan statistics
@@ -83,7 +83,7 @@ const Banks = () => {
       total: bankLeads.length,
       // Active loans are those that are not completed or rejected
       active: bankLeads.filter(l =>
-        ['logged', 'legal_valuation_property_done', 'sanctioned_branch_appointment_fixed', 'partial_disbursed', 'disbursed'].includes(l.status)
+        ['logged', 'inquiry', 'legal_valuation_property_done', 'sanctioned_branch_appointment_fixed', 'partial_disbursed', 'disbursed'].includes(l.status)
       ).length,
       completed: bankLeads.filter(l => l.status === 'completed').length,
     }

@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react'
-
-const LOAN_TYPES = [
-  { value: 'personal_loan', label: 'Personal Loan' },
-  { value: 'home_loan', label: 'Home Loan' },
-  { value: 'business_loan', label: 'Business Loan' },
-  { value: 'loan_against_property', label: 'Loan Against Property' },
-  { value: 'education_loan', label: 'Education Loan' },
-  { value: 'car_loan', label: 'Car Loan' },
-]
+import {
+  LOAN_TYPE_OPTIONS,
+  DEFAULT_TENURE_MONTHS_BY_LOAN_TYPE,
+  LEAD_MIN_TENURE_MONTHS,
+  LEAD_MAX_TENURE_MONTHS,
+} from '../utils/loanTenure'
 
 const BankForm = ({ bank, onSave, onClose }) => {
   const [formData, setFormData] = useState({
     name: '',
     loanTypes: [],
+    loanTenureMonths: {},
     type: 'bank',
     status: 'active',
     disbursementThresholdPercentage: 0,
@@ -25,6 +23,7 @@ const BankForm = ({ bank, onSave, onClose }) => {
       setFormData({
         name: bank.name || '',
         loanTypes: bank.loanTypes || [],
+        loanTenureMonths: bank.loanTenureMonths || {},
         type: bank.type || 'bank',
         status: bank.status || 'active',
         disbursementThresholdPercentage:
@@ -36,6 +35,7 @@ const BankForm = ({ bank, onSave, onClose }) => {
       setFormData({
         name: '',
         loanTypes: [],
+        loanTenureMonths: {},
         type: 'bank',
         status: 'active',
         disbursementThresholdPercentage: 0,
@@ -46,10 +46,21 @@ const BankForm = ({ bank, onSave, onClose }) => {
   const validate = () => {
     const newErrors = {}
     if (!formData.name || !formData.name.trim()) newErrors.name = 'Bank name is required'
-    if (!formData.loanTypes || formData.loanTypes.length === 0) newErrors.loanTypes = 'Please select at least one loan type'
+    if (!formData.loanTypes || formData.loanTypes.length === 0) {
+      newErrors.loanTypes = 'Please select at least one loan type'
+    }
     const threshold = Number(formData.disbursementThresholdPercentage)
     if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {
       newErrors.disbursementThresholdPercentage = 'Disbursement Threshold % must be between 0 and 100'
+    }
+    for (const lt of formData.loanTypes || []) {
+      const raw = formData.loanTenureMonths?.[lt]
+      const n = raw === '' || raw == null ? NaN : Number(raw)
+      if (!Number.isFinite(n) || n < LEAD_MIN_TENURE_MONTHS || n > LEAD_MAX_TENURE_MONTHS) {
+        const label = LOAN_TYPE_OPTIONS.find((o) => o.value === lt)?.label || lt
+        newErrors.loanTenureMonths = `Enter tenure (${LEAD_MIN_TENURE_MONTHS}–${LEAD_MAX_TENURE_MONTHS} months) for ${label}`
+        break
+      }
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -58,20 +69,39 @@ const BankForm = ({ bank, onSave, onClose }) => {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (validate()) {
-      onSave(formData)
+      const tenurePayload = {}
+      for (const lt of formData.loanTypes || []) {
+        const n = Number(formData.loanTenureMonths?.[lt])
+        if (Number.isFinite(n)) tenurePayload[lt] = Math.round(n)
+      }
+      onSave({ ...formData, loanTenureMonths: tenurePayload })
     }
   }
 
   const handleLoanTypeToggle = (value) => {
     setFormData((prev) => {
       const current = prev.loanTypes || []
-      const updated = current.includes(value)
-        ? current.filter((t) => t !== value)
-        : [...current, value]
-      return { ...prev, loanTypes: updated }
+      const adding = !current.includes(value)
+      const updated = adding ? [...current, value] : current.filter((t) => t !== value)
+      const loanTenureMonths = { ...(prev.loanTenureMonths || {}) }
+      if (adding && (loanTenureMonths[value] == null || loanTenureMonths[value] === '')) {
+        loanTenureMonths[value] = DEFAULT_TENURE_MONTHS_BY_LOAN_TYPE[value] ?? 120
+      }
+      if (!adding) delete loanTenureMonths[value]
+      return { ...prev, loanTypes: updated, loanTenureMonths }
     })
     if (errors.loanTypes) {
       setErrors((prev) => ({ ...prev, loanTypes: '' }))
+    }
+  }
+
+  const handleTenureChange = (loanType, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      loanTenureMonths: { ...(prev.loanTenureMonths || {}), [loanType]: value },
+    }))
+    if (errors.loanTenureMonths) {
+      setErrors((prev) => ({ ...prev, loanTenureMonths: '' }))
     }
   }
 
@@ -104,7 +134,7 @@ const BankForm = ({ bank, onSave, onClose }) => {
           Loan Types <span className="text-red-500">*</span>
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {LOAN_TYPES.map((lt) => {
+          {LOAN_TYPE_OPTIONS.map((lt) => {
             const checked = formData.loanTypes.includes(lt.value)
             return (
               <label
@@ -128,6 +158,40 @@ const BankForm = ({ bank, onSave, onClose }) => {
         </div>
         {errors.loanTypes && <p className="mt-1 text-sm text-red-600">{errors.loanTypes}</p>}
       </div>
+
+      {/* Default tenure per loan type (admin) */}
+      {formData.loanTypes.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Default tenure (months) per loan type <span className="text-red-500">*</span>
+          </label>
+          <p className="text-xs text-gray-500 mb-3">
+            Used when creating leads for this bank (can be changed on the lead).
+          </p>
+          <div className="space-y-3">
+            {formData.loanTypes.map((lt) => {
+              const label = LOAN_TYPE_OPTIONS.find((o) => o.value === lt)?.label || lt
+              return (
+                <div key={lt} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm text-gray-700 sm:w-48 flex-shrink-0">{label}</span>
+                  <input
+                    type="number"
+                    min={LEAD_MIN_TENURE_MONTHS}
+                    max={LEAD_MAX_TENURE_MONTHS}
+                    value={formData.loanTenureMonths?.[lt] ?? ''}
+                    onChange={(e) => handleTenureChange(lt, e.target.value)}
+                    className="w-full sm:max-w-[140px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Months"
+                  />
+                </div>
+              )
+            })}
+          </div>
+          {errors.loanTenureMonths && (
+            <p className="mt-1 text-sm text-red-600">{errors.loanTenureMonths}</p>
+          )}
+        </div>
+      )}
 
       {/* Disbursement threshold for invoice eligibility */}
       <div>

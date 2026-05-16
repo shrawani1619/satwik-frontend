@@ -2,6 +2,16 @@ import API_BASE_URL from '../config/api';
 import { authService } from './auth.service';
 import { toast } from './toastService';
 
+/** ngrok free tier serves an HTML interstitial to browsers unless this header is sent (no CORS on that page). */
+const isNgrokApiBase = () => /ngrok/i.test(API_BASE_URL);
+
+/** Headers for unauthenticated fetch (login/signup) — must match apiRequest so ngrok + CORS preflight stay aligned. */
+const getPublicJsonHeaders = (extra = {}) => ({
+  'Content-Type': 'application/json',
+  ...(isNgrokApiBase() ? { 'ngrok-skip-browser-warning': 'true' } : {}),
+  ...extra,
+});
+
 // Generic API request function
 const apiRequest = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -11,6 +21,7 @@ const apiRequest = async (endpoint, options = {}) => {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(isNgrokApiBase() ? { 'ngrok-skip-browser-warning': 'true' } : {}),
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
@@ -140,9 +151,7 @@ export const api = {
       try {
         const response = await fetch(url, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: getPublicJsonHeaders(),
           credentials: 'include',
           body: JSON.stringify(credentials),
         });
@@ -178,9 +187,7 @@ export const api = {
       try {
         const response = await fetch(url, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: getPublicJsonHeaders(),
           credentials: 'include',
           body: JSON.stringify(userData),
         });
@@ -236,10 +243,16 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-    updateStatus: (id, status) => apiRequest(`/leads/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    }),
+    updateStatus: (id, statusOrPayload) => {
+      const body =
+        typeof statusOrPayload === 'string'
+          ? { status: statusOrPayload }
+          : statusOrPayload;
+      return apiRequest(`/leads/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+    },
     delete: (id) => apiRequest(`/leads/${id}`, { method: 'DELETE' }),
     getHistory: (id, params = {}) => {
       const queryString = new URLSearchParams(params).toString();
@@ -257,6 +270,47 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+    /** Generate sanction letter PDF (Puppeteer); returns { data: { pdf, sanctionLetterPdf } } */
+    generateSanctionLetterPdf: (id) =>
+      apiRequest(`/leads/${id}/generate-pdf`, { method: 'POST' }),
+    /** Download stored sanction letter PDF (binary); triggers browser download */
+    downloadSanctionLetterPdf: async (id) => {
+      const token = authService.getToken();
+      const rawBase = API_BASE_URL.replace(/\/api$/, '');
+      const url = `${rawBase}/api/leads/${id}/download-pdf`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+          ...(isNgrokApiBase() ? { 'ngrok-skip-browser-warning': 'true' } : {}),
+        },
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        let message = `HTTP ${response.status}`;
+        try {
+          const errBody = await response.json();
+          message = errBody.error || errBody.message || message;
+        } catch (_) {}
+        toast.error('Download failed', message);
+        const err = new Error(message);
+        err._toastShown = true;
+        throw err;
+      }
+      const blob = await response.blob();
+      const cd = response.headers.get('content-disposition') || response.headers.get('Content-Disposition') || '';
+      let filename = `SANCTION_LETTER_${id}.pdf`;
+      const m = cd.match(/filename="([^"]+)"/i);
+      if (m) filename = m[1];
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+    },
   },
 
   // Staff endpoints

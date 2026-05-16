@@ -1,11 +1,32 @@
-// Utility for currency formatting
+/** Indian grouping: 1,00,000 (lakh), 1,00,00,000 (crore) */
+export const formatIndianNumber = (amount, options = {}) => {
+    if (amount === undefined || amount === null || amount === '') return '-';
+    const n = Number(String(amount).replace(/,/g, ''));
+    if (!Number.isFinite(n)) return '-';
+    return new Intl.NumberFormat('en-IN', {
+        maximumFractionDigits: options.maximumFractionDigits ?? 0,
+        minimumFractionDigits: options.minimumFractionDigits ?? 0,
+    }).format(n);
+};
+
+/** ₹ with Indian comma placement (en-IN) */
+export const formatIndianRupee = (amount) => {
+    if (amount === undefined || amount === null || amount === '-') return '-';
+    const formatted = formatIndianNumber(amount);
+    if (formatted === '-') return '-';
+    return `₹${formatted}`;
+};
+
+// Utility for currency formatting (Indian locale)
 export const formatCurrency = (amount) => {
     if (amount === undefined || amount === null || amount === '-') return '-';
+    const n = Number(String(amount).replace(/,/g, ''));
+    if (!Number.isFinite(n)) return '-';
     return new Intl.NumberFormat('en-IN', {
         style: 'currency',
         currency: 'INR',
-        maximumFractionDigits: 0
-    }).format(amount);
+        maximumFractionDigits: 0,
+    }).format(n);
 };
 
 // Utility for formatting amounts in K, M, L, Cr format

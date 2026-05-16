@@ -219,8 +219,8 @@ const Banners = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Banners Management</h1>
-          <p className="text-sm text-gray-600 mt-1">Manage banner images</p>
+          <h1 className="text-2xl font-bold text-gray-900">Master Documents</h1>
+          <p className="text-sm text-gray-600 mt-1">Manage document images</p>
         </div>
         <div className="flex items-center gap-2">
           {isAdmin && (

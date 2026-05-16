@@ -1,6 +1,7 @@
 const StatusBadge = ({ status }) => {
   const statusConfig = {
     logged: { color: 'bg-blue-100 text-blue-800', label: 'Logged' },
+    inquiry: { color: 'bg-sky-100 text-sky-900', label: 'Inquiry' },
     legal_valuation_property_done: {
       color: 'bg-lime-100 text-lime-900',
       label: 'Legal Valuation / Property Done',

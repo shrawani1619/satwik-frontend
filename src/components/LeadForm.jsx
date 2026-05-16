@@ -2,6 +2,24 @@ import { useState, useEffect } from 'react'
 import { toast } from '../services/toastService'
 import api from '../services/api'
 import { authService } from '../services/auth.service'
+import LeadEligibilityCounter from './LeadEligibilityCounter'
+import {
+  LEAD_MIN_AGE,
+  LEAD_MAX_AGE,
+  pickLeadField,
+  validateLeadIncomeFields,
+  serializeLeadIncomeFields,
+} from '../utils/leadIncomeFields'
+import {
+  getBankTenureMonths,
+  LEAD_MIN_TENURE_MONTHS,
+  LEAD_MAX_TENURE_MONTHS,
+} from '../utils/loanTenure'
+import {
+  buildLeadEligibilityValidationErrors,
+  validationErrorsToFieldMap,
+} from '../utils/leadEligibilityTracking'
+import { computeLeadEligibilitySnapshot } from '../utils/leadEligibility'
 
 const LeadForm = ({ onClose, onSave, lead }) => {
   const currentUser = authService.getUser()
@@ -25,6 +43,17 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     loanAmount: '',
     bank: '',
     branch: '',
+    projectName: '',
+
+    applicantAge: '',
+    cibil: '',
+    foir: '',
+    grossIncome: '',
+    salary: '',
+    deduction: '',
+    currentEmi: '',
+    rateOfInterest: '',
+    tenureMonths: '',
     
     // SM/BM & ASM (matches backend lead.controller / lead.model)
     smBmName: '',
@@ -71,6 +100,15 @@ const LeadForm = ({ onClose, onSave, lead }) => {
   }, [])
 
   useEffect(() => {
+    if (!formData.bank || !formData.loanType) return
+    if (String(formData.tenureMonths ?? '').trim() !== '') return
+    const suggested = getBankTenureMonths(banks, formData.bank, formData.loanType)
+    if (suggested) {
+      setFormData((prev) => ({ ...prev, tenureMonths: String(suggested) }))
+    }
+  }, [formData.bank, formData.loanType, banks])
+
+  useEffect(() => {
     if (!isEdit || !lead) return
 
     const bankValue = typeof lead.bank === 'object' && lead.bank
@@ -94,6 +132,25 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       loanType: lead.loanType || '',
       loanAmount: lead.loanAmount ?? lead.amount ?? '',
       branch: lead.branch || '',
+      projectName:
+        lead.projectName ||
+        lead.formValues?.projectName ||
+        lead.formValues?.project_name ||
+        '',
+
+      applicantAge: String(pickLeadField(lead, 'applicantAge', ['age', 'applicant_age']) || ''),
+      cibil: String(pickLeadField(lead, 'cibil') || ''),
+      foir: String(pickLeadField(lead, 'foir', ['foi', 'foir_percent']) || ''),
+      grossIncome: String(pickLeadField(lead, 'grossIncome', ['gross_income']) || ''),
+      salary: String(pickLeadField(lead, 'salary') || ''),
+      deduction: String(pickLeadField(lead, 'deduction') || ''),
+      currentEmi: String(pickLeadField(lead, 'currentEmi', ['current_emi']) || ''),
+      rateOfInterest: String(
+        pickLeadField(lead, 'rateOfInterest', ['rate_of_interest', 'interest_rate']) || ''
+      ),
+      tenureMonths: String(
+        pickLeadField(lead, 'tenureMonths', ['tenure', 'loanTenure', 'tenure_in_months']) || ''
+      ),
 
       // Bank/assignment
       bank: bankValue,
@@ -192,12 +249,44 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       newValue = value.replace(/[^0-9]/g, '')
     }
 
+    if (name === 'cibil' || name === 'applicantAge' || name === 'tenureMonths') {
+      newValue = value.replace(/[^0-9]/g, '')
+    }
+
+    const moneyFields = [
+      'grossIncome',
+      'salary',
+      'deduction',
+      'currentEmi',
+      'foir',
+      'rateOfInterest',
+    ]
+    if (moneyFields.includes(name)) {
+      newValue = value.replace(/[^0-9.]/g, '')
+      const parts = newValue.split('.')
+      if (parts.length > 2) {
+        newValue = `${parts[0]}.${parts.slice(1).join('')}`
+      }
+    }
+
     if (name === 'disbursedAmount') {
       newValue = value.replace(/[^0-9.]/g, '')
       const parts = newValue.split('.')
       if (parts.length > 2) {
         newValue = `${parts[0]}.${parts.slice(1).join('')}`
       }
+    }
+
+    if (name === 'bank' || name === 'loanType') {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: newValue,
+        tenureMonths: '',
+      }))
+      if (errors[name]) {
+        setErrors((prev) => ({ ...prev, [name]: '' }))
+      }
+      return
     }
     
     setFormData(prev => ({
@@ -253,27 +342,38 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     setLoading(true)
 
     try {
-      // Validate required fields
-      if (!formData.applicantMobile) {
-        toast.error('Applicant mobile is required')
+      const eligibilityValidationErrors = buildLeadEligibilityValidationErrors(formData)
+      if (eligibilityValidationErrors.length > 0) {
+        setErrors((prev) => ({ ...prev, ...validationErrorsToFieldMap(eligibilityValidationErrors) }))
+        toast.error(eligibilityValidationErrors[0].message)
         setLoading(false)
         return
       }
 
-      if (formData.advancePayment) {
-        const raw = String(formData.disbursedAmount ?? '').trim().replace(/,/g, '')
-        if (raw === '' || Number.isNaN(parseFloat(raw))) {
-          toast.error('Enter disbursed amount (₹) when advance payment is Yes')
-          setLoading(false)
-          return
-        }
+      const snapshot = computeLeadEligibilitySnapshot(formData)
+      if (!snapshot.requiredPassed) {
+        const firstFailed = (snapshot.checklist ?? []).find((item) => item.required && !item.status)
+        toast.error(firstFailed?.label ? `${firstFailed.label} not satisfied` : 'Complete required eligibility checks')
+        setLoading(false)
+        return
       }
+
+      const incomeValidation = validateLeadIncomeFields(formData)
+      if (!incomeValidation.ok) {
+        setErrors(incomeValidation.errors)
+        const firstMsg = Object.values(incomeValidation.errors)[0]
+        toast.error(firstMsg || 'Please complete all required income fields')
+        setLoading(false)
+        return
+      }
+      setErrors({})
 
       // Prepare data for submission
       const submitData = {
         ...formData,
         loanAmount: formData.loanAmount ? parseFloat(formData.loanAmount) : undefined,
-        cibil: formData.cibil ? parseInt(formData.cibil) : undefined,
+        cibil: formData.cibil ? parseInt(formData.cibil, 10) : undefined,
+        ...serializeLeadIncomeFields(formData),
       }
 
       // Remove empty fields
@@ -403,6 +503,20 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project name
+                </label>
+                <input
+                  type="text"
+                  name="projectName"
+                  value={formData.projectName}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="e.g. Green Valley Residency"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email
                 </label>
                 <input
@@ -442,6 +556,28 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                 />
                 {errors.applicantMobile && (
                   <p className="mt-1 text-xs text-red-600">{errors.applicantMobile}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Applicant age <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  name="applicantAge"
+                  value={formData.applicantAge}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.applicantAge ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder={`${LEAD_MIN_AGE}–${LEAD_MAX_AGE}`}
+                  maxLength={2}
+                  required
+                />
+                {errors.applicantAge && (
+                  <p className="mt-1 text-xs text-red-600">{errors.applicantAge}</p>
                 )}
               </div>
 
@@ -533,6 +669,31 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tenure (months) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  name="tenureMonths"
+                  value={formData.tenureMonths}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.tenureMonths ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder={`${LEAD_MIN_TENURE_MONTHS}–${LEAD_MAX_TENURE_MONTHS}`}
+                  maxLength={3}
+                  required
+                />
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Prefilled from bank defaults when available
+                </p>
+                {errors.tenureMonths && (
+                  <p className="mt-1 text-xs text-red-600">{errors.tenureMonths}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Branch
                 </label>
                 <input
@@ -544,7 +705,153 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                   placeholder="Enter branch"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">CIBIL / credit score</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  name="cibil"
+                  value={formData.cibil}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="e.g. 750"
+                  maxLength={3}
+                />
+                <p className="mt-0.5 text-xs text-gray-500">Optional — adds eligibility check (≥ 650)</p>
+              </div>
+
             </div>
+          </div>
+
+          {/* Income & FOIR */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Income & FOIR</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  FOIR (%) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  name="foir"
+                  value={formData.foir}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.foir ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="e.g. 50"
+                  required
+                />
+                {errors.foir && <p className="mt-1 text-xs text-red-600">{errors.foir}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gross income (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  name="grossIncome"
+                  value={formData.grossIncome}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.grossIncome ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Monthly gross"
+                  required
+                />
+                {errors.grossIncome && (
+                  <p className="mt-1 text-xs text-red-600">{errors.grossIncome}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Salary (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  name="salary"
+                  value={formData.salary}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.salary ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Monthly salary"
+                  required
+                />
+                {errors.salary && <p className="mt-1 text-xs text-red-600">{errors.salary}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Deduction (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  name="deduction"
+                  value={formData.deduction}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.deduction ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Total monthly deductions"
+                  required
+                />
+                {errors.deduction && (
+                  <p className="mt-1 text-xs text-red-600">{errors.deduction}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Current EMI (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  name="currentEmi"
+                  value={formData.currentEmi}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.currentEmi ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="0 if none"
+                  required
+                />
+                {errors.currentEmi && (
+                  <p className="mt-1 text-xs text-red-600">{errors.currentEmi}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Rate of interest (% p.a.) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  name="rateOfInterest"
+                  value={formData.rateOfInterest}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.rateOfInterest ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="e.g. 10.5"
+                  required
+                />
+                {errors.rateOfInterest && (
+                  <p className="mt-1 text-xs text-red-600">{errors.rateOfInterest}</p>
+                )}
+              </div>
+            </div>
+
+            <LeadEligibilityCounter formData={formData} />
           </div>
 
           {/* SM / BM & ASM (bank coordination) */}

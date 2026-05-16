@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Copy, Settings2, History, X, Receipt, FileDown, CheckCircle, FileText, Paperclip, ExternalLink } from 'lucide-react'
+import { Plus, Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Copy, Settings2, History, X, Receipt, FileDown, CheckCircle, FileText, Paperclip, ExternalLink, Loader2 } from 'lucide-react'
 import api from '../services/api'
 import { authService } from '../services/auth.service'
 import StatusBadge from '../components/StatusBadge'
@@ -9,10 +9,56 @@ import DisbursementEmailModal from '../components/DisbursementEmailModal'
 import LeadForm from '../components/LeadForm'
 import { toast } from '../services/toastService'
 import { exportToExcel } from '../utils/exportExcel'
-import { canExportData } from '../utils/roleUtils'
+import { canExportLeads } from '../utils/roleUtils'
 import AccountantLeads from './AccountantLeads'
-import { formatInCrores } from '../utils/formatUtils'
+import { formatInCrores, formatIndianRupee } from '../utils/formatUtils'
+import { downloadSanctionLetterForLead, handleSanctionLetterDownloadClick } from '../utils/sanctionLetterPdf'
+import SanctionAmountModal from '../components/SanctionAmountModal'
+import { getLeadLoanAmount, validateSanctionAmount } from '../utils/sanctionAmount'
 
+const SANCTION_STATUS = 'sanctioned_branch_appointment_fixed'
+
+const DEFAULT_LEAD_COLUMNS = [
+  { key: 'customerName', label: 'Customer Name', visible: true, sortable: true },
+  { key: 'loanType', label: 'Loan Type', visible: true, sortable: true },
+  { key: 'loanAmount', label: 'Loan Amount', visible: true, sortable: true },
+  { key: 'disbursedAmount', label: 'Disbursed Amount', visible: true, sortable: true },
+  { key: 'remainingAmount', label: 'Remaining', visible: true, sortable: true },
+  { key: 'status', label: 'Status', visible: true, sortable: true },
+  { key: 'bank', label: 'Bank Name', visible: true, sortable: false },
+  { key: 'smBm', label: 'SM/BM', visible: true, sortable: false },
+  { key: 'asm', label: 'ASM', visible: true, sortable: false },
+  { key: 'branch', label: 'Branch', visible: true, sortable: true },
+  { key: 'projectName', label: 'Project Name', visible: true, sortable: true },
+  { key: 'disbursementDate', label: 'Disbursement Date', visible: true, sortable: true },
+  { key: 'sanctionedDate', label: 'Sanctioned Date', visible: true, sortable: true },
+  { key: 'remarks', label: 'Remarks', visible: false, sortable: false },
+  { key: 'createdAt', label: 'Date', visible: true, sortable: true },
+  { key: 'actions', label: 'Actions', visible: true, sortable: false },
+]
+
+function mergeLeadColumnConfig(savedColumns) {
+  const merged = [...savedColumns]
+  const keys = new Set(merged.map((c) => c.key))
+  for (const defCol of DEFAULT_LEAD_COLUMNS) {
+    if (keys.has(defCol.key)) continue
+    if (defCol.key === 'projectName') {
+      const branchIdx = merged.findIndex((c) => c.key === 'branch')
+      if (branchIdx >= 0) merged.splice(branchIdx + 1, 0, { ...defCol })
+      else {
+        const actionsIdx = merged.findIndex((c) => c.key === 'actions')
+        if (actionsIdx >= 0) merged.splice(actionsIdx, 0, { ...defCol })
+        else merged.push({ ...defCol })
+      }
+    } else {
+      const actionsIdx = merged.findIndex((c) => c.key === 'actions')
+      if (actionsIdx >= 0) merged.splice(actionsIdx, 0, { ...defCol })
+      else merged.push({ ...defCol })
+    }
+    keys.add(defCol.key)
+  }
+  return merged
+}
 
 const Leads = () => {
   const userRole = authService.getUser()?.role || 'super_admin'
@@ -43,6 +89,7 @@ const Leads = () => {
   const [agentFilter, setAgentFilter] = useState('')
   const [bankFilter, setBankFilter] = useState('')
   const [dsaCodeFilter, setDsaCodeFilter] = useState('')
+  const [projectFilter, setProjectFilter] = useState('')
   const [loanTypeFilter, setLoanTypeFilter] = useState('all')
   const [dateFromFilter, setDateFromFilter] = useState('')
   const [dateToFilter, setDateToFilter] = useState('')
@@ -70,6 +117,26 @@ const Leads = () => {
   const [invoiceNumberInput, setInvoiceNumberInput] = useState('')
   const [invoiceRequestLead, setInvoiceRequestLead] = useState(null)
   const [isInvoiceRequestSubmitting, setIsInvoiceRequestSubmitting] = useState(false)
+  const [sanctionPdfLoadingId, setSanctionPdfLoadingId] = useState(null)
+  const [isSanctionModalOpen, setIsSanctionModalOpen] = useState(false)
+  const [sanctionModalLead, setSanctionModalLead] = useState(null)
+  const [sanctionAmountInput, setSanctionAmountInput] = useState('')
+  const [sanctionInvoiceNumber, setSanctionInvoiceNumber] = useState('')
+  const [isSanctionSubmitting, setIsSanctionSubmitting] = useState(false)
+
+  const updateLeadSanctionPdfMeta = (leadId, pdfMeta) => {
+    setLeads((prev) =>
+      prev.map((l) => {
+        const lid = l?._id || l?.id
+        return lid && String(lid) === String(leadId) ? { ...l, sanctionLetterPdf: pdfMeta } : l
+      })
+    )
+    setSelectedLead((prev) => {
+      if (!prev) return prev
+      const pid = prev._id || prev.id
+      return pid && String(pid) === String(leadId) ? { ...prev, sanctionLetterPdf: pdfMeta } : prev
+    })
+  }
 
 
   // Column configuration with all available fields
@@ -134,29 +201,13 @@ const Leads = () => {
           seenKeys.add(col.key)
           return true
         })
-        
-        return deduplicated
+
+        return mergeLeadColumnConfig(deduplicated)
       } catch (e) {
         console.error('Error parsing saved column config:', e)
       }
     }
-    return [
-      { key: 'customerName', label: 'Customer Name', visible: true, sortable: true },
-      { key: 'loanType', label: 'Loan Type', visible: true, sortable: true },
-      { key: 'loanAmount', label: 'Loan Amount', visible: true, sortable: true },
-      { key: 'disbursedAmount', label: 'Disbursed Amount', visible: true, sortable: true },
-      { key: 'remainingAmount', label: 'Remaining', visible: true, sortable: true },
-      { key: 'status', label: 'Status', visible: true, sortable: true },
-      { key: 'bank', label: 'Bank Name', visible: true, sortable: false },
-      { key: 'smBm', label: 'SM/BM', visible: true, sortable: false },
-      { key: 'asm', label: 'ASM', visible: true, sortable: false },
-      { key: 'branch', label: 'Branch', visible: true, sortable: true },
-      { key: 'disbursementDate', label: 'Disbursement Date', visible: true, sortable: true },
-      { key: 'sanctionedDate', label: 'Sanctioned Date', visible: true, sortable: true },
-      { key: 'remarks', label: 'Remarks', visible: false, sortable: false },
-      { key: 'createdAt', label: 'Date', visible: true, sortable: true },
-      { key: 'actions', label: 'Actions', visible: true, sortable: false },
-    ].filter(col => col.key !== 'associated' && col.key !== 'franchise' && col.key !== 'agent' && col.key !== 'subAgent' && col.key !== 'agentName' && col.key !== 'subAgentName')
+    return [...DEFAULT_LEAD_COLUMNS]
   })
 
   useEffect(() => {
@@ -226,24 +277,22 @@ const Leads = () => {
     }
   }, [expandedFields, showColumnSettings])
 
+  const parseLeadsResponse = (response) => {
+    if (Array.isArray(response)) return response
+    if (response?.data && Array.isArray(response.data)) return response.data
+    if (response?.data?.data && Array.isArray(response.data.data)) return response.data.data
+    if (response?.leads && Array.isArray(response.leads)) return response.leads
+    console.warn('Unexpected leads response structure:', response)
+    return []
+  }
+
   const fetchLeads = async () => {
     try {
       setLoading(true)
       const response = await api.leads.getAll({ limit: 1000 })
       console.log('🔍 DEBUG: Leads API response:', response)
 
-      // Handle different response structures
-      let leadsData = []
-      if (Array.isArray(response)) {
-        leadsData = response
-      } else if (response && Array.isArray(response.data)) {
-        leadsData = response.data
-      } else if (response && response.data && Array.isArray(response.data)) {
-        leadsData = response.data
-      } else {
-        console.warn('⚠️ Unexpected response structure:', response)
-        leadsData = []
-      }
+      const leadsData = parseLeadsResponse(response)
 
       console.log('🔍 DEBUG: Parsed leads data:', leadsData.length, 'leads')
       if (leadsData.length > 0) {
@@ -348,14 +397,13 @@ const Leads = () => {
     }
   }
 
-  // Filter and search leads
-  const filteredLeads = useMemo(() => {
-    if (!leads || leads.length === 0) return []
+  const filterLeadsByUiState = (list) => {
+    if (!list || list.length === 0) return []
 
     const searchLower = (searchTerm || '').trim().toLowerCase()
     const hasSearch = searchLower.length > 0
 
-    return leads.filter((lead) => {
+    return list.filter((lead) => {
       if (!lead) return false
 
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter
@@ -377,12 +425,18 @@ const Leads = () => {
         const code = (lead.dsaCode ?? lead.codeUse ?? '').toString().toLowerCase()
         if (!code.includes(dsaCodeFilter.trim().toLowerCase())) return false
       }
+      if (projectFilter.trim()) {
+        const project = (lead.projectName ?? lead.formValues?.projectName ?? lead.formValues?.project_name ?? '')
+          .toString()
+          .trim()
+          .toLowerCase()
+        if (project !== projectFilter.trim().toLowerCase()) return false
+      }
       if (loanTypeFilter && loanTypeFilter !== 'all') {
         const leadType = (lead.loanType ?? '').toString().replace(/_/g, ' ').toLowerCase()
         if (!leadType.includes(loanTypeFilter.trim().toLowerCase())) return false
       }
 
-      // Date range filtering
       if (dateFromFilter || dateToFilter) {
         const leadDate = lead.createdAt ? new Date(lead.createdAt) : null
         if (!leadDate) return false
@@ -407,50 +461,29 @@ const Leads = () => {
       const customerName = lead.customerName || ''
       const caseNumber = lead.caseNumber || ''
       const loanAccountNo = (lead.loanAccountNo || '').toString()
+      const projectName = (lead.projectName ?? lead.formValues?.projectName ?? lead.formValues?.project_name ?? '')
+        .toString()
 
       return (
         applicantEmail.toLowerCase().includes(searchLower) ||
         applicantMobile.includes(searchTerm.trim()) ||
         customerName.toLowerCase().includes(searchLower) ||
         caseNumber.toLowerCase().includes(searchLower) ||
-        loanAccountNo.toLowerCase().includes(searchLower)
+        loanAccountNo.toLowerCase().includes(searchLower) ||
+        projectName.toLowerCase().includes(searchLower)
       )
     })
-  }, [leads, searchTerm, statusFilter, franchiseFilter, agentFilter, bankFilter, dsaCodeFilter, loanTypeFilter, dateFromFilter, dateToFilter])
-
-  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || franchiseFilter !== '' || agentFilter !== '' || bankFilter !== '' || dsaCodeFilter.trim() !== '' || (loanTypeFilter && loanTypeFilter !== 'all') || dateFromFilter !== '' || dateToFilter !== ''
-  
-  // Calculate total loan amount from filtered leads
-  const totalFilteredLoanAmount = useMemo(() => {
-    return filteredLeads.reduce((sum, lead) => {
-      const loanAmount = lead.loanAmount || lead.amount || 0
-      return sum + (typeof loanAmount === 'number' ? loanAmount : parseFloat(loanAmount) || 0)
-    }, 0)
-  }, [filteredLeads])
-
-  const clearLeadsFilters = () => {
-    setSearchTerm('')
-    setStatusFilter('all')
-    setFranchiseFilter('')
-    setAgentFilter('')
-    setBankFilter('')
-    setDsaCodeFilter('')
-    setLoanTypeFilter('all')
-    setDateFromFilter('')
-    setDateToFilter('')
   }
 
-  // Sort leads
-  const sortedLeads = useMemo(() => {
-    if (!sortConfig.key) return filteredLeads
+  const sortLeadsList = (list) => {
+    if (!sortConfig.key) return list
 
-    return [...filteredLeads].sort((a, b) => {
+    return [...list].sort((a, b) => {
       if (!a || !b) return 0
 
       let aValue = a[sortConfig.key]
       let bValue = b[sortConfig.key]
 
-      // Handle null/undefined values
       if (aValue == null) aValue = ''
       if (bValue == null) bValue = ''
 
@@ -467,7 +500,60 @@ const Leads = () => {
       }
       return 0
     })
-  }, [filteredLeads, sortConfig])
+  }
+
+  // Filter and search leads
+  const filteredLeads = useMemo(
+    () => filterLeadsByUiState(leads),
+    [leads, searchTerm, statusFilter, franchiseFilter, agentFilter, bankFilter, dsaCodeFilter, projectFilter, loanTypeFilter, dateFromFilter, dateToFilter]
+  )
+
+  const projectOptions = useMemo(() => {
+    const names = new Set()
+    leads.forEach((lead) => {
+      const p = (lead.projectName ?? lead.formValues?.projectName ?? lead.formValues?.project_name ?? '')
+        .toString()
+        .trim()
+      if (p) names.add(p)
+    })
+    return Array.from(names).sort((a, b) => a.localeCompare(b))
+  }, [leads])
+
+  const hasActiveFilters =
+    searchTerm !== '' ||
+    statusFilter !== 'all' ||
+    franchiseFilter !== '' ||
+    agentFilter !== '' ||
+    bankFilter !== '' ||
+    dsaCodeFilter.trim() !== '' ||
+    projectFilter.trim() !== '' ||
+    (loanTypeFilter && loanTypeFilter !== 'all') ||
+    dateFromFilter !== '' ||
+    dateToFilter !== ''
+  
+  // Calculate total loan amount from filtered leads
+  const totalFilteredLoanAmount = useMemo(() => {
+    return filteredLeads.reduce((sum, lead) => {
+      const loanAmount = lead.loanAmount || lead.amount || 0
+      return sum + (typeof loanAmount === 'number' ? loanAmount : parseFloat(loanAmount) || 0)
+    }, 0)
+  }, [filteredLeads])
+
+  const clearLeadsFilters = () => {
+    setSearchTerm('')
+    setStatusFilter('all')
+    setFranchiseFilter('')
+    setAgentFilter('')
+    setBankFilter('')
+    setDsaCodeFilter('')
+    setProjectFilter('')
+    setLoanTypeFilter('all')
+    setDateFromFilter('')
+    setDateToFilter('')
+  }
+
+  // Sort leads
+  const sortedLeads = useMemo(() => sortLeadsList(filteredLeads), [filteredLeads, sortConfig])
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -665,6 +751,7 @@ const Leads = () => {
       'sanctionedDate': 'Sanctioned Date',
       'customerName': 'Customer Name',
       'branch': 'Branch',
+      'projectName': 'Project Name',
       'asmName': 'ASM Name',
       'asmEmail': 'ASM Email',
       'asmMobile': 'ASM Mobile',
@@ -796,6 +883,7 @@ const Leads = () => {
         asmMobile: formData.asmMobile?.trim() || undefined,
         dsaCode: formData.dsaCode?.trim() || formData.codeUse?.trim() || undefined,
         branch: formData.branch?.trim() || undefined,
+        projectName: formData.projectName?.trim() || undefined,
         remarks: formData.remarks?.trim() || undefined,
       }
 
@@ -861,6 +949,71 @@ const Leads = () => {
       }
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const closeSanctionModal = () => {
+    setIsSanctionModalOpen(false)
+    setSanctionModalLead(null)
+    setSanctionAmountInput('')
+    setSanctionInvoiceNumber('')
+  }
+
+  const handleStatusSelectChange = (lead, newStatus) => {
+    const leadId = lead?.id || lead?._id
+    const prevStatus = lead?.status || 'logged'
+    if (
+      newStatus === SANCTION_STATUS &&
+      prevStatus !== SANCTION_STATUS
+    ) {
+      setSanctionModalLead(lead)
+      const defaultAmt = lead.sanctionedAmount ?? lead.loanAmount ?? lead.amount ?? ''
+      setSanctionAmountInput(defaultAmt !== '' && defaultAmt != null ? String(defaultAmt) : '')
+      setSanctionInvoiceNumber('')
+      setIsSanctionModalOpen(true)
+      return
+    }
+    handleStatusUpdate(leadId, newStatus)
+  }
+
+  const submitSanctionStatus = async () => {
+    const lead = sanctionModalLead
+    const leadId = lead?.id || lead?._id
+    const amount = Number(String(sanctionAmountInput).replace(/,/g, '').trim())
+    if (!leadId) {
+      toast.error('Error', 'Lead ID is missing')
+      return
+    }
+    const loanAmount = getLeadLoanAmount(lead)
+    const check = validateSanctionAmount(amount, loanAmount)
+    if (!check.valid) {
+      toast.error('Error', check.message)
+      return
+    }
+
+    setIsSanctionSubmitting(true)
+    try {
+      const payload = {
+        status: SANCTION_STATUS,
+        sanctionedAmount: amount,
+        generateInvoice: true,
+      }
+      const invNo = sanctionInvoiceNumber.trim()
+      if (invNo) payload.invoiceNumber = invNo
+
+      const res = await api.leads.updateStatus(leadId, payload)
+      await fetchLeads()
+      closeSanctionModal()
+      if (res?.invoiceError) {
+        toast.error('Partial success', res.invoiceError)
+      } else {
+        toast.success('Success', res?.message || 'Status updated and invoice generated')
+      }
+    } catch (error) {
+      console.error('Error updating sanction status:', error)
+      toast.error('Error', error.message || 'Failed to update status')
+    } finally {
+      setIsSanctionSubmitting(false)
     }
   }
 
@@ -1100,6 +1253,103 @@ const Leads = () => {
     return 'N/A'
   }
 
+  const getBankDisplayNameForExport = (lead) => {
+    if (lead.bankName) return lead.bankName
+    if (lead.bank && typeof lead.bank === 'object' && lead.bank.name) return lead.bank.name
+    const bankId = typeof lead.bank === 'string' ? lead.bank : (lead.bank?._id || lead.bank?.id)
+    if (bankId) {
+      const found = banks.find((b) => String(b.id || b._id) === String(bankId))
+      if (found?.name) return found.name
+    }
+    return getBankName(lead.bankId || lead.bank) || 'N/A'
+  }
+
+  const getSmBmDisplayForExport = (lead) => {
+    if (lead.smBm && typeof lead.smBm === 'object' && lead.smBm.name) return lead.smBm.name
+    const smBmId = lead.smBmId || (lead.smBm && (lead.smBm._id || lead.smBm.id)) || lead.smBm
+    return getStaffName(smBmId)
+  }
+
+  const getLeadExportScalar = (lead, colKey) => {
+    switch (colKey) {
+      case 'caseNumber':
+        return lead.caseNumber || 'N/A'
+      case 'customerName':
+        return lead.customerName || 'N/A'
+      case 'loanType':
+        return lead.loanType?.replace(/_/g, ' ') || 'N/A'
+      case 'loanAmount': {
+        const la = lead.loanAmount || lead.amount
+        return la != null && la !== '' ? formatIndianRupee(la) : ''
+      }
+      case 'disbursedAmount':
+        return lead.disbursedAmount != null && lead.disbursedAmount !== ''
+          ? formatIndianRupee(lead.disbursedAmount)
+          : ''
+      case 'remainingAmount': {
+        const la = lead.loanAmount || lead.amount || 0
+        const d = lead.disbursedAmount || 0
+        return formatIndianRupee(Math.max(0, la - d))
+      }
+      case 'status':
+        return lead.status || 'N/A'
+      case 'associated':
+        return getAssociatedName(lead)
+      case 'franchise':
+        return getFranchiseName(lead.franchise || lead.franchiseId || lead.associated)
+      case 'bank':
+        return getBankDisplayNameForExport(lead)
+      case 'smBm':
+        return getSmBmDisplayForExport(lead)
+      case 'asm':
+        return lead.asmName || 'N/A'
+      case 'branch':
+        return lead.branch || 'N/A'
+      case 'projectName':
+        return (
+          lead.projectName ||
+          lead.formValues?.projectName ||
+          lead.formValues?.project_name ||
+          'N/A'
+        )
+      case 'loanAccountNo':
+        return lead.loanAccountNo || 'N/A'
+      case 'disbursementDate':
+        return lead.disbursementDate ? new Date(lead.disbursementDate).toLocaleDateString() : 'N/A'
+      case 'sanctionedDate':
+        return lead.sanctionedDate ? new Date(lead.sanctionedDate).toLocaleDateString() : 'N/A'
+      case 'codeUse':
+      case 'dsaCode':
+        return lead.dsaCode || lead.codeUse || 'N/A'
+      case 'remarks':
+        return lead.remarks || 'N/A'
+      case 'createdAt':
+        return lead.createdAt
+          ? new Date(lead.createdAt).toLocaleDateString()
+          : lead.created_at
+            ? new Date(lead.created_at).toLocaleDateString()
+            : 'N/A'
+      case 'agent':
+      case 'agentId':
+      case 'agentName':
+        return lead.agent?.name || getAgentName(lead.agentId || lead.agent) || 'N/A'
+      case 'subAgent':
+      case 'subAgentId':
+      case 'subAgentName':
+        if (lead.subAgentName) return lead.subAgentName
+        return getSubAgentName(lead.subAgent)
+      default: {
+        const v = lead[colKey]
+        if (v == null) return ''
+        if (typeof v === 'object') {
+          if (v.name != null) return String(v.name)
+          return ''
+        }
+        return String(v)
+      }
+    }
+  }
+
   const toggleExpand = (leadId, field) => {
     const key = `${leadId}-${field}`
     setExpandedFields(prev => ({
@@ -1134,12 +1384,16 @@ const Leads = () => {
   }
 
   const toggleColumnVisibility = (key) => {
+    // Prevent hiding the Actions column — required for the Download sanction-letter button.
+    if (String(key || '').toLowerCase() === 'actions') return
     setColumnConfig(prev => prev.map(col =>
       col.key === key ? { ...col, visible: !col.visible } : col
     ))
   }
 
   const visibleColumns = columnConfig.filter(col => {
+    // Always keep the Actions column visible so Download PDF remains accessible.
+    if (String(col?.key || '') === 'actions') return true
     if (!col.visible) return false
 
     const key = (col.key || '').toString().toLowerCase()
@@ -1169,9 +1423,21 @@ const Leads = () => {
     return true
   })
 
+  const buildLeadExcelRows = (leadList, columns) => {
+    const cols = (columns || []).filter((c) => c.key !== 'actions')
+    return leadList.map((lead) => {
+      const row = {}
+      for (const col of cols) {
+        row[col.label] = getLeadExportScalar(lead, col.key)
+      }
+      return row
+    })
+  }
+
   const statusOptions = [
     { value: 'all', label: 'All Status' },
     { value: 'logged', label: 'Logged' },
+    { value: 'inquiry', label: 'Inquiry' },
     { value: 'legal_valuation_property_done', label: 'Legal Valuation / Property Done' },
     { value: 'sanctioned_branch_appointment_fixed', label: 'Sanction and branch appointment are fixed' },
     { value: 'partial_disbursed', label: 'Partial Disbursed' },
@@ -1189,44 +1455,31 @@ const Leads = () => {
           <p className="text-xs md:text-sm text-gray-600 mt-1">Manage and track all loan leads</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-2">
-          {canExportData() && (
+          {canExportLeads() && (
             <button
+              type="button"
               onClick={() => {
-                const rows = sortedLeads.map((lead) => {
-                  const base = {
-                  'Customer Name': lead.customerName || 'N/A',
-                  'Loan Type': lead.loanType?.replace(/_/g, ' ') || 'N/A',
-                  'Loan Amount': lead.loanAmount || lead.amount || '',
-                  'Disbursed Amount': lead.disbursedAmount ?? '',
-                  Status: lead.status || 'N/A',
-                  Bank: lead.bank?.name || getBankName(lead.bankId || lead.bank) || 'N/A',
-                  'SM/BM': lead.smBm?.name || getStaffName(lead.smBmId || lead.smBm) || 'N/A',
-                  ASM: lead.asmName || 'N/A',
-                  Branch: lead.branch || 'N/A',
-                  'Disbursement Date': lead.disbursementDate ? new Date(lead.disbursementDate).toLocaleDateString() : 'N/A',
-                  'Sanctioned Date': lead.sanctionedDate ? new Date(lead.sanctionedDate).toLocaleDateString() : 'N/A',
-                  Remarks: lead.remarks || 'N/A',
-                  Created: lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A',
+                const cols = visibleColumns.filter((c) => c.key !== 'actions')
+                if (!cols.length) {
+                  toast.error('Export', 'Enable at least one data column to export')
+                  return
                 }
-                if (!isAgent && userRole !== 'franchise') {
-                  base.Associated = getAssociatedName(lead)
+                const rows = buildLeadExcelRows(sortedLeads, cols)
+                if (!rows.length) {
+                  toast.error('Export', 'No leads to export')
+                  return
                 }
-                if (!isAgent) {
-                  base.Agent = lead.agent?.name || getAgentName(lead.agentId || lead.agent) || 'N/A'
-                }
-                return base
-              })
-              exportToExcel(rows, `leads_export_${Date.now()}`, 'Leads')
-              toast.success('Export', `Exported ${rows.length} leads to Excel`)
-            }}
-            disabled={sortedLeads.length === 0}
-            title="Export currently filtered data to Excel"
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            <FileDown className="w-4 h-4" />
-            <span className="hidden sm:inline">Export to Excel</span>
-            <span className="sm:hidden">Export</span>
-          </button>
+                exportToExcel(rows, `leads_export_${Date.now()}`, 'Leads')
+                toast.success('Export', `Exported ${rows.length} leads to Excel`)
+              }}
+              disabled={loading}
+              title={loading ? 'Loading leads...' : 'Export currently filtered data to Excel'}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              <FileDown className="w-4 h-4" />
+              <span className="hidden sm:inline">Export to Excel</span>
+              <span className="sm:hidden">Export</span>
+            </button>
           )}
           <div className="relative">
             <button
@@ -1304,6 +1557,40 @@ const Leads = () => {
         </div>
       </div>
 
+      {/* Quick search + project filter (always visible) */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 md:p-4 mb-3 md:mb-4 flex-shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Search</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Name, email, phone, project..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Project name</label>
+            <select
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+            >
+              <option value="">All projects</option>
+              {projectOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-3 md:mb-6 flex-shrink-0">
         <button
@@ -1329,7 +1616,7 @@ const Leads = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Name, email, phone, account..."
+                    placeholder="Name, email, phone, project..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-9 pr-3 py-2.5 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
@@ -1400,6 +1687,21 @@ const Leads = () => {
                   onChange={(e) => setDsaCodeFilter(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project name</label>
+                <select
+                  value={projectFilter}
+                  onChange={(e) => setProjectFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                >
+                  <option value="">All projects</option>
+                  {projectOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Loan Type</label>
@@ -1580,15 +1882,15 @@ const Leads = () => {
                       case 'loanType':
                         return <div className="text-sm text-gray-900">{lead.loanType?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'N/A'}</div>
                       case 'loanAmount':
-                        return <div className="text-sm font-medium text-gray-900">₹{(lead.loanAmount || lead.amount || 0).toLocaleString()}</div>
+                        return <div className="text-sm font-medium text-gray-900">{formatIndianRupee(lead.loanAmount || lead.amount || 0)}</div>
                       // 'sanctionedAmount' column removed
                       case 'disbursedAmount':
-                        return <div className="text-sm font-medium text-gray-900">₹{(lead.disbursedAmount || 0).toLocaleString()}</div>
+                        return <div className="text-sm font-medium text-gray-900">{formatIndianRupee(lead.disbursedAmount || 0)}</div>
                       case 'remainingAmount':
                         const loanAmount = lead.loanAmount || lead.amount || 0;
                         const disbursed = lead.disbursedAmount || 0;
                         const remaining = Math.max(0, loanAmount - disbursed);
-                        return <div className="text-sm font-medium text-gray-900">₹{remaining.toLocaleString()}</div>
+                        return <div className="text-sm font-medium text-gray-900">{formatIndianRupee(remaining)}</div>
                       case 'status':
                         return <StatusBadge status={lead.status || 'logged'} />
                       case 'associated': {
@@ -1937,6 +2239,18 @@ const Leads = () => {
                         )
                       case 'branch':
                         return <div className="text-sm text-gray-900">{lead.branch || 'N/A'}</div>
+                      case 'projectName': {
+                        const pn =
+                          lead.projectName ||
+                          lead.formValues?.projectName ||
+                          lead.formValues?.project_name ||
+                          'N/A'
+                        return (
+                          <div className="text-sm text-gray-900 max-w-[140px] truncate" title={pn}>
+                            {pn}
+                          </div>
+                        )
+                      }
                       case 'loanAccountNo':
                         return <div className="text-sm text-gray-900">{lead.loanAccountNo || 'N/A'}</div>
                       case 'disbursementDate':
@@ -1953,6 +2267,26 @@ const Leads = () => {
                       case 'actions':
                         return (
                           <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleSanctionLetterDownloadClick(
+                                  lead,
+                                  sanctionPdfLoadingId,
+                                  setSanctionPdfLoadingId,
+                                  updateLeadSanctionPdfMeta
+                                )
+                              }}
+                              disabled={sanctionPdfLoadingId === String(lead._id || lead.id)}
+                              className="text-emerald-700 hover:text-emerald-900 p-1 disabled:opacity-50"
+                              title="Download sanction letter PDF"
+                            >
+                              {sanctionPdfLoadingId === String(lead._id || lead.id) ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <FileDown className="w-4 h-4" />
+                              )}
+                            </button>
                             <button
                               onClick={() => handleView(lead)}
                               className="text-primary-900 hover:text-primary-800 p-1"
@@ -1981,7 +2315,7 @@ const Leads = () => {
                                 <CheckCircle className="w-4 h-4" />
                               </button>
                             )}
-                            {isAgent && (lead.status === 'logged') && (
+                            {isAgent && (lead.status === 'logged' || lead.status === 'inquiry') && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -2011,13 +2345,23 @@ const Leads = () => {
                                 </button>
                                 <select
                                   value={lead.status || 'logged'}
-                                  onChange={(e) => handleStatusUpdate(lead.id || lead._id, e.target.value)}
+                                  onChange={(e) => {
+                                    const next = e.target.value
+                                    handleStatusSelectChange(lead, next)
+                                    if (
+                                      next === SANCTION_STATUS &&
+                                      (lead.status || 'logged') !== SANCTION_STATUS
+                                    ) {
+                                      e.target.value = lead.status || 'logged'
+                                    }
+                                  }}
                                   className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   {(lead.status || 'logged') === 'logged' && (
                                     <option value="logged">Logged</option>
                                   )}
+                                  <option value="inquiry">Inquiry</option>
                                   <option value="legal_valuation_property_done">Legal Valuation / Property Done</option>
                                   <option value="sanctioned_branch_appointment_fixed">Sanction and branch appointment are fixed</option>
                                   <option value="partial_disbursed">Partial Disbursed</option>
@@ -2116,15 +2460,24 @@ const Leads = () => {
                 case 'loanType':
                   return lead.loanType?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'N/A'
                 case 'loanAmount':
-                  return `₹${(lead.loanAmount || lead.amount || 0).toLocaleString()}`
+                  return formatIndianRupee(lead.loanAmount || lead.amount || 0)
                 case 'disbursedAmount':
-                  return `₹${(lead.disbursedAmount || 0).toLocaleString()}`
+                  return formatIndianRupee(lead.disbursedAmount || 0)
                 case 'status':
                   return lead.status || 'logged'
                 case 'bank':
                   return lead.bank?.name || getBankName(lead.bankId || lead.bank) || 'N/A'
                 case 'loanAccountNo':
                   return lead.loanAccountNo || 'N/A'
+                case 'projectName':
+                  return (
+                    lead.projectName ||
+                    lead.formValues?.projectName ||
+                    lead.formValues?.project_name ||
+                    'N/A'
+                  )
+                case 'branch':
+                  return lead.branch || 'N/A'
                 default:
                   return 'N/A'
               }
@@ -2182,6 +2535,27 @@ const Leads = () => {
                 {/* Actions */}
                 {visibleColumns.some(col => col.key === 'actions') && (
                   <div className="pt-3 border-t border-gray-100 mt-3 flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSanctionLetterDownloadClick(
+                          lead,
+                          sanctionPdfLoadingId,
+                          setSanctionPdfLoadingId,
+                          updateLeadSanctionPdfMeta
+                        )
+                      }}
+                      disabled={sanctionPdfLoadingId === String(lead._id || lead.id)}
+                      className="text-emerald-700 hover:text-emerald-900 p-2 disabled:opacity-50"
+                      title="Download sanction letter PDF"
+                    >
+                      {sanctionPdfLoadingId === String(lead._id || lead.id) ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <FileDown className="w-4 h-4" />
+                      )}
+                    </button>
                     {canEdit && (
                       <>
                         <button
@@ -2239,6 +2613,18 @@ const Leads = () => {
           })
         )}
       </div>
+
+      <SanctionAmountModal
+        isOpen={isSanctionModalOpen}
+        onClose={closeSanctionModal}
+        lead={sanctionModalLead}
+        sanctionAmount={sanctionAmountInput}
+        onSanctionAmountChange={setSanctionAmountInput}
+        invoiceNumber={sanctionInvoiceNumber}
+        onInvoiceNumberChange={setSanctionInvoiceNumber}
+        onSubmit={submitSanctionStatus}
+        isSubmitting={isSanctionSubmitting}
+      />
 
       <Modal
         isOpen={isInvoiceNumberModalOpen}
@@ -2298,8 +2684,8 @@ const Leads = () => {
         title="Create New Lead"
         size="lg"
       >
-        <LeadForm 
-          onClose={() => { setIsCreateModalOpen(false); fetchLeads(); }} 
+        <LeadForm
+          onClose={() => { setIsCreateModalOpen(false); fetchLeads(); }}
           onSave={(newLead) => {
             setLeads([newLead, ...leads])
           }}
@@ -2363,7 +2749,16 @@ const Leads = () => {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Loan Amount</label>
-                <p className="mt-1 text-sm text-gray-900">₹{(selectedLead.loanAmount || selectedLead.amount || 0).toLocaleString()}</p>
+                <p className="mt-1 text-sm text-gray-900">{formatIndianRupee(selectedLead.loanAmount || selectedLead.amount || 0)}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Project name</label>
+                <p className="mt-1 text-sm text-gray-900">
+                  {selectedLead.projectName ||
+                    selectedLead.formValues?.projectName ||
+                    selectedLead.formValues?.project_name ||
+                    'N/A'}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Status</label>
@@ -2490,6 +2885,66 @@ const Leads = () => {
                 <p className="mt-1 text-sm text-gray-900">
                   {selectedLead.createdAt ? new Date(selectedLead.createdAt).toLocaleDateString() : selectedLead.created_at ? new Date(selectedLead.created_at).toLocaleDateString() : 'N/A'}
                 </p>
+              </div>
+            </div>
+
+            {/* Loan sanction letter (Puppeteer PDF) */}
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary-600" />
+                  Loan sanction letter
+                </span>
+                {selectedLead?.sanctionLetterPdf?.generatedAt && (
+                  <span className="text-xs text-gray-500">
+                    Generated {new Date(selectedLead.sanctionLetterPdf.generatedAt).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={!!sanctionPdfLoadingId}
+                  onClick={async () => {
+                    const id = selectedLead._id || selectedLead.id
+                    if (!id) return
+                    setSanctionPdfLoadingId(String(id))
+                    try {
+                      const res = await api.leads.generateSanctionLetterPdf(id)
+                      const pdfMeta = res?.data?.sanctionLetterPdf
+                      updateLeadSanctionPdfMeta(String(id), pdfMeta)
+                      toast.success('PDF ready', 'Sanction letter generated successfully.')
+                    } catch (e) {
+                      if (!e._toastShown) toast.error('Error', e.message || 'Could not generate PDF')
+                    } finally {
+                      setSanctionPdfLoadingId(null)
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-primary-900 text-white text-sm font-medium rounded-lg hover:bg-primary-800 disabled:opacity-50"
+                >
+                  {sanctionPdfLoadingId === String(selectedLead._id || selectedLead.id) ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
+                  Generate PDF
+                </button>
+                <button
+                  type="button"
+                  disabled={!!sanctionPdfLoadingId}
+                  onClick={() =>
+                    handleSanctionLetterDownloadClick(
+                      selectedLead,
+                      sanctionPdfLoadingId,
+                      setSanctionPdfLoadingId,
+                      updateLeadSanctionPdfMeta
+                    )
+                  }
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-800 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Download PDF
+                </button>
               </div>
             </div>
 

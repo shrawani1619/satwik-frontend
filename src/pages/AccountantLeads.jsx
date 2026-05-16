@@ -3,7 +3,7 @@ import {
     Search, Filter, ChevronDown, ChevronUp, MoreVertical, FileDown,
     Plus, Edit, Trash2, ArrowRight, User, Building, CreditCard,
     FileText, Calendar, CheckCircle2, Clock, X, Save, Calculator, PieChart, DollarSign,
-    Percent, Hash, Tag, Eye, Download, CheckCircle
+    Percent, Hash, Tag, Eye, Download, CheckCircle, Loader2
 } from 'lucide-react';
 import api from '../services/api';
 import { toast } from '../services/toastService';
@@ -14,6 +14,11 @@ import EditDisbursementForm from '../components/EditDisbursementForm';
 import ConfirmModal from '../components/ConfirmModal';
 import Modal from '../components/Modal';
 import DisbursementEmailModal from '../components/DisbursementEmailModal';
+import { handleSanctionLetterDownloadClick } from '../utils/sanctionLetterPdf';
+import SanctionAmountModal from '../components/SanctionAmountModal';
+import { getLeadLoanAmount, validateSanctionAmount } from '../utils/sanctionAmount';
+
+const SANCTION_STATUS = 'sanctioned_branch_appointment_fixed';
 
 // Financial calculation utilities
 const calculateRemainingAmount = (loanAmount, disbursedAmount) => {
@@ -75,6 +80,22 @@ const AccountantLeads = () => {
     const [isInvoiceRequestSubmitting, setIsInvoiceRequestSubmitting] = useState(false);
         
     const [viewLeadData, setViewLeadData] = useState(null);
+    const [sanctionPdfLoadingId, setSanctionPdfLoadingId] = useState(null);
+    const [isSanctionModalOpen, setIsSanctionModalOpen] = useState(false);
+    const [sanctionModalLead, setSanctionModalLead] = useState(null);
+    const [sanctionAmountInput, setSanctionAmountInput] = useState('');
+    const [sanctionInvoiceNumber, setSanctionInvoiceNumber] = useState('');
+    const [isSanctionSubmitting, setIsSanctionSubmitting] = useState(false);
+
+    const updateLeadSanctionPdfMeta = (leadId, pdfMeta) => {
+        setLeads((prev) =>
+            prev.map((l) => (String(l._id || l.id) === String(leadId) ? { ...l, sanctionLetterPdf: pdfMeta } : l))
+        );
+        setViewLeadData((prev) => {
+            if (!prev) return prev;
+            return String(prev._id || prev.id) === String(leadId) ? { ...prev, sanctionLetterPdf: pdfMeta } : prev;
+        });
+    };
     const [selectedLead, setSelectedLead] = useState(null);
     const [selectedDisbursement, setSelectedDisbursement] = useState(null);
     const [disbursementToDelete, setDisbursementToDelete] = useState(null);
@@ -284,6 +305,68 @@ const AccountantLeads = () => {
         } catch (error) {
             console.error('Error deleting lead:', error);
             toast.error('Error', error.message || 'Failed to delete lead');
+        }
+    };
+
+    const closeSanctionModal = () => {
+        setIsSanctionModalOpen(false);
+        setSanctionModalLead(null);
+        setSanctionAmountInput('');
+        setSanctionInvoiceNumber('');
+    };
+
+    const handleStatusSelectChange = (lead, newStatus) => {
+        const leadId = lead?._id || lead?.id;
+        const prevStatus = lead?.status || 'logged';
+        if (newStatus === SANCTION_STATUS && prevStatus !== SANCTION_STATUS) {
+            setSanctionModalLead(lead);
+            const defaultAmt = lead.sanctionedAmount ?? lead.loanAmount ?? '';
+            setSanctionAmountInput(defaultAmt !== '' && defaultAmt != null ? String(defaultAmt) : '');
+            setSanctionInvoiceNumber('');
+            setIsSanctionModalOpen(true);
+            return;
+        }
+        handleStatusUpdate(leadId, newStatus);
+    };
+
+    const submitSanctionStatus = async () => {
+        const lead = sanctionModalLead;
+        const leadId = lead?._id || lead?.id;
+        const amount = Number(String(sanctionAmountInput).replace(/,/g, '').trim());
+        if (!leadId) {
+            toast.error('Error', 'Lead ID is missing');
+            return;
+        }
+        const loanAmount = getLeadLoanAmount(lead);
+        const check = validateSanctionAmount(amount, loanAmount);
+        if (!check.valid) {
+            toast.error('Error', check.message);
+            return;
+        }
+
+        setIsSanctionSubmitting(true);
+        try {
+            const payload = {
+                status: SANCTION_STATUS,
+                sanctionedAmount: amount,
+                generateInvoice: true,
+            };
+            const invNo = sanctionInvoiceNumber.trim();
+            if (invNo) payload.invoiceNumber = invNo;
+
+            const res = await api.accountant.updateLeadStatus(leadId, payload);
+            await fetchLeads();
+            closeSanctionModal();
+            if (res?.data?.invoiceError || res?.invoiceError) {
+                toast.error('Partial success', res?.data?.invoiceError || res?.invoiceError);
+            } else {
+                toast.success('Success', res?.message || 'Status updated and invoice generated');
+            }
+        } catch (error) {
+            console.error('Error updating sanction status:', error);
+            toast.error('Error', error.message || 'Failed to update status');
+        } finally {
+            setIsSanctionSubmitting(false);
         }
     };
 
@@ -497,6 +580,9 @@ const AccountantLeads = () => {
     
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
+            case 'logged':
+            case 'inquiry':
+                return 'bg-orange-100 text-orange-700 border-orange-200';
             case 'approved':
             case 'legal_valuation_property_done':
             case 'sanctioned_branch_appointment_fixed':
@@ -959,6 +1045,27 @@ const AccountantLeads = () => {
                                                 <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap">
                                                     <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                                                         <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleSanctionLetterDownloadClick(
+                                                                    lead,
+                                                                    sanctionPdfLoadingId,
+                                                                    setSanctionPdfLoadingId,
+                                                                    updateLeadSanctionPdfMeta
+                                                                );
+                                                            }}
+                                                            disabled={sanctionPdfLoadingId === String(lead._id || lead.id)}
+                                                            className="text-emerald-700 hover:text-emerald-900 p-1 disabled:opacity-50"
+                                                            title="Download sanction letter PDF"
+                                                        >
+                                                            {sanctionPdfLoadingId === String(lead._id || lead.id) ? (
+                                                                <Loader2 size={16} className="animate-spin" />
+                                                            ) : (
+                                                                <Download size={16} />
+                                                            )}
+                                                        </button>
+                                                        <button
                                                             onClick={() => openViewModal(lead._id)}
                                                             className="text-primary-900 hover:text-primary-800 p-1"
                                                             title="View Details"
@@ -993,7 +1100,16 @@ const AccountantLeads = () => {
                                                         </button>
                                                         <select
                                                             value={lead.status || 'sanctioned_branch_appointment_fixed'}
-                                                            onChange={(e) => handleStatusUpdate(lead._id, e.target.value)}
+                                                            onChange={(e) => {
+                                                                const next = e.target.value;
+                                                                handleStatusSelectChange(lead, next);
+                                                                if (
+                                                                    next === SANCTION_STATUS &&
+                                                                    (lead.status || 'sanctioned_branch_appointment_fixed') !== SANCTION_STATUS
+                                                                ) {
+                                                                    e.target.value = lead.status || 'sanctioned_branch_appointment_fixed';
+                                                                }
+                                                            }}
                                                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
                                                             onClick={(e) => e.stopPropagation()}
                                                         >
@@ -1257,6 +1373,60 @@ const AccountantLeads = () => {
                                 </div>
                             </div>
 
+                            <div className="px-6 py-4 border-t border-gray-200 bg-white">
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Loan sanction letter</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        disabled={!!sanctionPdfLoadingId}
+                                        onClick={async () => {
+                                            const id = viewLeadData._id || viewLeadData.id;
+                                            if (!id) return;
+                                            setSanctionPdfLoadingId(String(id));
+                                            try {
+                                                const res = await api.leads.generateSanctionLetterPdf(id);
+                                                const pdfMeta = res?.data?.sanctionLetterPdf;
+                                                updateLeadSanctionPdfMeta(String(id), pdfMeta);
+                                                toast.success('PDF ready', 'Sanction letter generated successfully.');
+                                            } catch (e) {
+                                                if (!e._toastShown) toast.error('Error', e.message || 'Could not generate PDF');
+                                            } finally {
+                                                setSanctionPdfLoadingId(null);
+                                            }
+                                        }}
+                                        className="inline-flex items-center gap-2 px-3 py-2 bg-primary-900 text-white text-sm font-bold rounded-lg hover:bg-primary-800 disabled:opacity-50"
+                                    >
+                                        {sanctionPdfLoadingId === String(viewLeadData._id || viewLeadData.id) ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <FileText className="w-4 h-4" />
+                                        )}
+                                        Generate PDF
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={!!sanctionPdfLoadingId}
+                                        onClick={() =>
+                                            handleSanctionLetterDownloadClick(
+                                                viewLeadData,
+                                                sanctionPdfLoadingId,
+                                                setSanctionPdfLoadingId,
+                                                updateLeadSanctionPdfMeta
+                                            )
+                                        }
+                                        className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-800 text-sm font-bold rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Download PDF
+                                    </button>
+                                </div>
+                                {viewLeadData?.sanctionLetterPdf?.generatedAt && (
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Last generated: {new Date(viewLeadData.sanctionLetterPdf.generatedAt).toLocaleString()}
+                                    </p>
+                                )}
+                            </div>
+
                             <div className="p-6 border-t border-gray-100 bg-gray-50">
                                 <button
                                     onClick={() => setIsViewModalOpen(false)}
@@ -1268,6 +1438,18 @@ const AccountantLeads = () => {
                         </div>
                     </div>
                 )}
+
+                <SanctionAmountModal
+                    isOpen={isSanctionModalOpen}
+                    onClose={closeSanctionModal}
+                    lead={sanctionModalLead}
+                    sanctionAmount={sanctionAmountInput}
+                    onSanctionAmountChange={setSanctionAmountInput}
+                    invoiceNumber={sanctionInvoiceNumber}
+                    onInvoiceNumberChange={setSanctionInvoiceNumber}
+                    onSubmit={submitSanctionStatus}
+                    isSubmitting={isSanctionSubmitting}
+                />
 
                 <Modal
                     isOpen={isInvoiceNumberModalOpen}
