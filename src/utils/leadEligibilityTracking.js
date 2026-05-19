@@ -130,7 +130,6 @@ function isRequiredFieldsCompleted(formLike = {}) {
     'loanAmount',
     'grossIncome',
     'foir',
-    'salary',
     'deduction',
     'currentEmi',
     'rateOfInterest',

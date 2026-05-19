@@ -58,8 +58,7 @@ export function validateLeadIncomeFields(formLike) {
   const numericRequired = [
     { key: 'foir', label: 'FOIR', min: 1, max: 100 },
     { key: 'grossIncome', label: 'Gross income', min: 1 },
-    { key: 'salary', label: 'Salary', min: 1 },
-    { key: 'deduction', label: 'Deduction', min: 0 },
+    { key: 'deduction', label: 'Applicant deduction', min: 0 },
     { key: 'currentEmi', label: 'Current EMI', min: 0 },
     { key: 'rateOfInterest', label: 'Rate of interest', min: 0.1, max: 50 },
     {
@@ -93,7 +92,7 @@ export function validateLeadIncomeFields(formLike) {
   const gross = parseMoney(formLike.grossIncome)
   const deduction = parseMoney(formLike.deduction)
   if (Number.isFinite(gross) && Number.isFinite(deduction) && deduction > gross) {
-    errors.deduction = 'Deduction cannot exceed gross income'
+    errors.deduction = 'Applicant deduction cannot exceed gross income'
   }
 
   return { ok: Object.keys(errors).length === 0, errors }
@@ -104,7 +103,6 @@ export function serializeLeadIncomeFields(formData) {
   return {
     foir: parseMoney(formData.foir),
     grossIncome: parseMoney(formData.grossIncome),
-    salary: parseMoney(formData.salary),
     deduction: parseMoney(formData.deduction),
     currentEmi: parseMoney(formData.currentEmi),
     rateOfInterest: parseMoney(formData.rateOfInterest),

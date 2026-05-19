@@ -130,8 +130,8 @@ function buildCalculationBreakdown(formLike, calc) {
     },
     {
       id: 'totalCurrent',
-      title: 'Total current EMI (incl. salary deduction)',
-      formula: 'Current loan EMI + Salary deduction',
+      title: 'Total current EMI (incl. applicant deduction)',
+      formula: 'Current loan EMI + Applicant deduction',
       calculation: `${formatEligibleRupee(calc.currentEmi)} + ${formatEligibleRupee(calc.salaryDeduction)}`,
       result: formatEligibleRupee(calc.totalCurrentEmi),
     },
@@ -332,8 +332,7 @@ export function computeLeadEligibilitySnapshot(formLike) {
   const requiredIncomeFields = [
     { key: 'foir', label: 'FOIR (%)' },
     { key: 'grossIncome', label: 'Gross income' },
-    { key: 'salary', label: 'Salary' },
-    { key: 'deduction', label: 'Deduction' },
+    { key: 'deduction', label: 'Applicant deduction' },
     { key: 'currentEmi', label: 'Current EMI' },
     { key: 'rateOfInterest', label: 'Rate of interest' },
     { key: 'tenureMonths', label: 'Tenure (months)' },
@@ -459,49 +458,10 @@ export function formatEligibilityPreviewForCopy(snapshot = {}) {
   const eligibilityPercent = snapshot.eligibilityPercent ?? 0
   const requiredPassed = snapshot.requiredPassed ?? false
   const insight = snapshot.amountInsight ?? {}
-  const breakdown = snapshot.calculationBreakdown
-  const calc = breakdown?.calc ?? snapshot.eligibilityCalc
-
   lines.push('ELIGIBILITY PREVIEW')
   lines.push('═'.repeat(40))
   lines.push(`Status: ${eligibilityPercent}% · ${requiredPassed ? 'Required met' : 'Incomplete'}`)
   lines.push('')
-
-  if (breakdown?.ready && calc) {
-    lines.push('HOME LOAN ELIGIBILITY CALCULATION')
-    lines.push('─'.repeat(40))
-    lines.push(`Total gross / month:     ${formatEligibleRupee(calc.totalGrossSalary)}`)
-    lines.push(`FOIR limit:              ${calc.foir}%`)
-    lines.push(`Max EMI at FOIR:         ${formatEligibleRupee(calc.foirAmount)}`)
-    lines.push(`Current loan EMI:        ${formatEligibleRupee(calc.currentEmi)}`)
-    lines.push(`Salary deduction:        ${formatEligibleRupee(calc.salaryDeduction)}`)
-    lines.push(`Total current EMI:       ${formatEligibleRupee(calc.totalCurrentEmi)}`)
-    lines.push(`Eligible EMI:            ${formatEligibleRupee(calc.eligibleEmiPerMonth)}`)
-    lines.push(`New loan EMI:            ${formatEligibleRupee(calc.loanEmiPerMonth)}`)
-    lines.push(`EMI gap:                 ${formatEligibleRupee(calc.emiGap)}`)
-    lines.push(`FOIR (with new loan):    ${Math.round(calc.actualFoirPct * 10) / 10}%`)
-    lines.push(`Eligibility:             ${calc.isEligible ? 'PASS' : 'FAIL'}`)
-    lines.push(`Tenure used:             ${calc.finalTenure} months`)
-    lines.push('')
-
-    if (breakdown.steps?.length) {
-      lines.push('STEP-BY-STEP')
-      lines.push('─'.repeat(40))
-      breakdown.steps.forEach((step, i) => {
-        const status =
-          step.passed === true ? ' [Pass]' : step.passed === false ? ' [Over limit]' : ''
-        lines.push(`${i + 1}. ${step.title}${status}`)
-        lines.push(`   Formula: ${step.formula}`)
-        lines.push(`   = ${step.calculation}`)
-        lines.push(`   → ${step.result}`)
-        lines.push('')
-      })
-    }
-  } else if (breakdown?.missing?.length) {
-    lines.push('Complete these fields to see calculation:')
-    lines.push(breakdown.missing.join(', '))
-    lines.push('')
-  }
 
   lines.push('MAX ELIGIBLE LOAN (APPROX.)')
   lines.push('─'.repeat(40))

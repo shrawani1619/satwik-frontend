@@ -3,119 +3,8 @@ import { toast } from '../services/toastService'
 import {
   computeLeadEligibilitySnapshot,
   ELIGIBILITY_ASSUMED_RATE_PCT,
-  formatEligibleRupee,
   formatEligibilityPreviewForCopy,
-  MAX_AGE_AT_LOAN_END,
-  MAX_TENURE_MONTHS_ELIGIBILITY,
 } from '../utils/leadEligibility'
-
-function StepBadge({ passed }) {
-  if (passed === true) {
-    return (
-      <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-        Pass
-      </span>
-    )
-  }
-  if (passed === false) {
-    return (
-      <span className="text-[10px] font-bold uppercase text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
-        Over limit
-      </span>
-    )
-  }
-  return null
-}
-
-function CalculationBreakdown({ breakdown }) {
-  if (!breakdown) return null
-
-  if (!breakdown.ready) {
-    const missing = breakdown.missing ?? []
-    if (missing.length === 0) return null
-    return (
-      <div className="rounded-md border border-dashed border-gray-300 bg-gray-50/80 p-3 select-text">
-        <p className="text-xs text-gray-600">
-          Complete to see calculation:{' '}
-          <span className="font-medium text-gray-800">{missing.join(', ')}</span>
-        </p>
-      </div>
-    )
-  }
-
-  const calc = breakdown.calc
-
-  return (
-    <div className="rounded-md border border-slate-300 bg-white p-3 space-y-3 select-text">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-800">
-        Home loan eligibility calculation
-      </p>
-      <p className="text-[11px] text-gray-600 leading-relaxed">
-        FOIR is calculated on <strong>gross salary</strong>. Eligible capacity is reduced by{' '}
-        <strong>current loan EMI + salary deductions</strong>.
-      </p>
-
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs border-b border-gray-100 pb-2">
-        <span className="text-gray-500">Total gross / mo</span>
-        <span className="font-semibold text-right">{formatEligibleRupee(calc.totalGrossSalary)}</span>
-        <span className="text-gray-500">FOIR limit</span>
-        <span className="font-semibold text-right">{calc.foir}%</span>
-        <span className="text-gray-500">Max EMI at FOIR</span>
-        <span className="font-semibold text-right">{formatEligibleRupee(calc.foirAmount)}</span>
-        <span className="text-gray-500">Current loan EMI</span>
-        <span className="font-semibold text-right">{formatEligibleRupee(calc.currentEmi)}</span>
-        <span className="text-gray-500">Salary deduction</span>
-        <span className="font-semibold text-right">{formatEligibleRupee(calc.salaryDeduction)}</span>
-        <span className="text-gray-500">Total current EMI</span>
-        <span className="font-semibold text-right">{formatEligibleRupee(calc.totalCurrentEmi)}</span>
-        <span className="text-gray-500">Eligible EMI</span>
-        <span className="font-semibold text-right text-primary-800">
-          {formatEligibleRupee(calc.eligibleEmiPerMonth)}
-        </span>
-      </div>
-
-      <ol className="space-y-2.5">
-        {breakdown.steps.map((step, index) => (
-          <li
-            key={step.id}
-            className={`rounded-md border px-3 py-2 text-xs ${
-              step.passed === false
-                ? 'border-red-200 bg-red-50'
-                : step.passed === true
-                  ? 'border-emerald-200 bg-emerald-50/60'
-                  : 'border-gray-200 bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-gray-900">
-                {index + 1}. {step.title}
-              </span>
-              <StepBadge passed={step.passed} />
-            </div>
-            <p className="mt-1 text-[11px] text-gray-500 font-mono">{step.formula}</p>
-            <p className="text-gray-700">= {step.calculation}</p>
-            <p className="font-semibold text-primary-900 mt-0.5">→ {step.result}</p>
-          </li>
-        ))}
-      </ol>
-
-      <div
-        className={`rounded-md px-3 py-2 text-xs font-semibold ${
-          calc.isEligible ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
-        }`}
-      >
-        {calc.isEligible ? 'PASS' : 'FAIL'} — New loan EMI{' '}
-        {calc.isEligible ? 'fits within' : 'exceeds'} eligible EMI capacity (gap{' '}
-        {formatEligibleRupee(calc.emiGap)}).
-      </div>
-
-      <p className="text-[11px] text-gray-500">
-        Tenure capped at {MAX_TENURE_MONTHS_ELIGIBILITY} months or until age {MAX_AGE_AT_LOAN_END}{' '}
-        (used {calc.finalTenure} mo).
-      </p>
-    </div>
-  )
-}
 
 /**
  * Live eligibility counter while filling the lead form (indicative only).
@@ -164,7 +53,7 @@ export default function LeadEligibilityCounter({ formData }) {
             type="button"
             onClick={handleCopy}
             className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
-            title="Copy full eligibility summary"
+            title="Copy eligibility summary"
           >
             {copied ? (
               <>
@@ -199,8 +88,6 @@ export default function LeadEligibilityCounter({ formData }) {
           </span>
         </div>
       </div>
-
-      <CalculationBreakdown breakdown={snapshot.calculationBreakdown} />
 
       <div className="rounded-md border border-primary-200 bg-white/80 p-3 space-y-1.5">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary-800">

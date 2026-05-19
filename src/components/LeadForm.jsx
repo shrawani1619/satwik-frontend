@@ -37,6 +37,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     applicantMobile: '',
     applicantEmail: '',
     customerName: '',
+    coApplicantName: '',
     pan: '',
     aadhar: '',
     email: '',
@@ -54,7 +55,6 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     foir: '',
     grossIncome: '',
     coApplicantGross: '',
-    salary: '',
     deduction: '',
     coApplicantAge: '',
     currentEmi: '',
@@ -129,6 +129,9 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       ...prev,
       // Basic
       customerName: lead.customerName || '',
+      coApplicantName: String(
+        pickLeadField(lead, 'coApplicantName', ['co_applicant_name', 'coApplicant']) || ''
+      ),
       applicantEmail: lead.applicantEmail || lead.email || '',
       applicantMobile: lead.applicantMobile || lead.mobile || lead.phone || '',
       pan: lead.pan || '',
@@ -151,7 +154,6 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       coApplicantGross: String(
         pickLeadField(lead, 'coApplicantGross', ['co_applicant_gross']) || ''
       ),
-      salary: String(pickLeadField(lead, 'salary') || ''),
       deduction: String(pickLeadField(lead, 'deduction') || ''),
       coApplicantAge: String(
         pickLeadField(lead, 'coApplicantAge', ['co_applicant_age']) || ''
@@ -267,7 +269,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
     const moneyFields = [
       'grossIncome',
-      'salary',
+      'coApplicantGross',
       'deduction',
       'currentEmi',
       'foir',
@@ -514,6 +516,20 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="Enter customer name"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Co-applicant name
+                </label>
+                <input
+                  type="text"
+                  name="coApplicantName"
+                  value={formData.coApplicantName}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="Enter co-applicant name"
                 />
               </div>
 
@@ -769,7 +785,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Gross income (₹) <span className="text-red-500">*</span>
+                  Applicant gross income (₹) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -790,7 +806,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Co-applicant gross (₹)
+                  Co-applicant gross income (₹)
                 </label>
                 <input
                   type="text"
@@ -821,26 +837,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Salary (₹) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  name="salary"
-                  value={formData.salary}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                    errors.salary ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Monthly salary"
-                  required
-                />
-                {errors.salary && <p className="mt-1 text-xs text-red-600">{errors.salary}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Deduction (₹) <span className="text-red-500">*</span>
+                  Deduction Of Salary <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -851,7 +848,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
                     errors.deduction ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Total monthly deductions"
+                  placeholder="Monthly applicant deductions"
                   required
                 />
                 {errors.deduction && (
@@ -876,7 +873,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                   required
                 />
                 <p className="mt-0.5 text-xs text-gray-500">
-                  Salary deduction is added to this for FOIR (total current EMI).
+                  Applicant deduction is added to this for FOIR (total current EMI).
                 </p>
                 {errors.currentEmi && (
                   <p className="mt-1 text-xs text-red-600">{errors.currentEmi}</p>
