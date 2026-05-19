@@ -53,8 +53,10 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     cibil: '',
     foir: '',
     grossIncome: '',
+    coApplicantGross: '',
     salary: '',
     deduction: '',
+    coApplicantAge: '',
     currentEmi: '',
     rateOfInterest: '',
     tenureMonths: '',
@@ -146,8 +148,14 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       cibil: String(pickLeadField(lead, 'cibil') || ''),
       foir: String(pickLeadField(lead, 'foir', ['foi', 'foir_percent']) || ''),
       grossIncome: String(pickLeadField(lead, 'grossIncome', ['gross_income']) || ''),
+      coApplicantGross: String(
+        pickLeadField(lead, 'coApplicantGross', ['co_applicant_gross']) || ''
+      ),
       salary: String(pickLeadField(lead, 'salary') || ''),
       deduction: String(pickLeadField(lead, 'deduction') || ''),
+      coApplicantAge: String(
+        pickLeadField(lead, 'coApplicantAge', ['co_applicant_age']) || ''
+      ),
       currentEmi: String(pickLeadField(lead, 'currentEmi', ['current_emi']) || ''),
       rateOfInterest: String(
         pickLeadField(lead, 'rateOfInterest', ['rate_of_interest', 'interest_rate']) || ''
@@ -782,6 +790,37 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Co-applicant gross (₹)
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  name="coApplicantGross"
+                  value={formData.coApplicantGross}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="0 if none"
+                />
+                <p className="mt-0.5 text-xs text-gray-500">Optional — added to applicant gross for FOIR</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Co-applicant age
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  name="coApplicantAge"
+                  value={formData.coApplicantAge}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="For tenure cap"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Salary (₹) <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -836,6 +875,9 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                   placeholder="0 if none"
                   required
                 />
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Salary deduction is added to this for FOIR (total current EMI).
+                </p>
                 {errors.currentEmi && (
                   <p className="mt-1 text-xs text-red-600">{errors.currentEmi}</p>
                 )}

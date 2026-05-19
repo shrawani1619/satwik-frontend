@@ -7,6 +7,13 @@ import {
 } from './leadIncomeFields'
 import { getLeadTenureMonths, LEAD_MIN_TENURE_MONTHS, LEAD_MAX_TENURE_MONTHS, parseTenureMonths } from './loanTenure'
 import { appendLeadEligibilityTracking } from './leadEligibilityTracking'
+import {
+  calculateEligibilityFromForm,
+  calculateEmi,
+  computeMaxTenureByAge,
+  MAX_AGE_AT_LOAN_END,
+  MAX_TENURE_MONTHS_ELIGIBILITY,
+} from './loanEligibilityCalculations'
 
 /** Assumed rate for rough EMI when rate not entered (eligibility hint only). */
 export const ELIGIBILITY_ASSUMED_RATE_PCT = 10.5
@@ -28,12 +35,12 @@ function parseNum(v) {
 export function estimateEmi(principal, annualRatePct, tenureMonths) {
   const P = parseNum(principal)
   const n = Number(tenureMonths)
-  const rPer = annualRatePct / 12 / 100
   if (!Number.isFinite(P) || P <= 0 || !Number.isFinite(n) || n <= 0) return null
-  if (rPer <= 0) return P / n
-  const x = (1 + rPer) ** n
-  return (P * rPer * x) / (x - 1)
+  const emi = calculateEmi(P, annualRatePct, n)
+  return emi > 0 ? emi : null
 }
+
+export { calculateEmi, calculateEligibilityFromForm, computeMaxTenureByAge, MAX_AGE_AT_LOAN_END, MAX_TENURE_MONTHS_ELIGIBILITY }
 
 /** Max principal for given EMI, rate, tenure (inverse of estimateEmi). */
 export function maxPrincipalFromEmi(emi, annualRatePct, tenureMonths) {
@@ -68,28 +75,18 @@ function getFoirLimitPct(formLike) {
  * @returns {number|null} raw max loan before rounding
  */
 export function computeMaxEligibleLoanFromIncome(formLike) {
-  const income = computeNetMonthlyIncome(formLike)
-  if (!Number.isFinite(income) || income <= 0) return null
+  const calc = calculateEligibilityFromForm(formLike, getFoirLimitPct(formLike))
+  if (!calc.totalGrossSalary || calc.eligibleEmiPerMonth <= 0) return null
 
-  const tenure = getLeadTenureMonths(formLike)
-
-  const foirPct = getFoirLimitPct(formLike)
-  const maxTotalEmi = income * (foirPct / 100)
-  const currentEmi = parseNum(formLike.currentEmi)
-  const availableEmi =
-    Number.isFinite(currentEmi) && currentEmi >= 0 ? maxTotalEmi - currentEmi : maxTotalEmi
-  if (!Number.isFinite(availableEmi) || availableEmi <= 0) return null
-
-  const rate = getEffectiveInterestRate(formLike) ?? ELIGIBILITY_ASSUMED_RATE_PCT
-  let raw = maxPrincipalFromEmi(availableEmi, rate, tenure)
-  if (raw == null || !Number.isFinite(raw) || raw <= 0) return null
+  let raw = calc.maxLoanFromEligibleEmi
+  if (!raw || !Number.isFinite(raw) || raw <= 0) return null
 
   const cibilStr = formLike.cibil != null && formLike.cibil !== '' ? String(formLike.cibil).trim() : ''
   const cibil = cibilStr !== '' ? parseInt(cibilStr, 10) : NaN
   const { mult } = cibilEligibilityFactor(cibil)
-  raw *= mult
+  raw = Math.round((raw * mult) / 1000) * 1000
 
-  return Math.round(raw / 1000) * 1000
+  return raw > 0 ? raw : null
 }
 
 export function formatEligibleRupee(n) {
@@ -97,75 +94,142 @@ export function formatEligibleRupee(n) {
   return `₹${Math.round(n).toLocaleString('en-IN')}`
 }
 
+function buildCalculationBreakdown(formLike, calc) {
+  const missing = []
+  const gross = parseNum(formLike.grossIncome) || parseNum(formLike.salary)
+  if (!gross) missing.push('gross income')
+  if (!parseNum(formLike.foir)) missing.push('FOIR (%)')
+  if (!Number.isFinite(parseNum(formLike.currentEmi))) missing.push('current EMI')
+  if (!parseTenureMonths(formLike.tenureMonths)) missing.push('tenure (months)')
+  if (!getEffectiveInterestRate(formLike)) missing.push('rate of interest')
+  if (!parseNum(formLike.loanAmount)) missing.push('loan amount')
+  if (!parseInt(String(formLike.applicantAge ?? '').trim(), 10)) missing.push('applicant age')
+
+  if (missing.length > 0) {
+    return { ready: false, missing }
+  }
+
+  if (!calc?.totalGrossSalary) {
+    return { ready: false, missing: ['gross income'] }
+  }
+
+  const steps = [
+    {
+      id: 'gross',
+      title: 'Total gross monthly income',
+      formula: 'Applicant gross + Co-applicant gross',
+      calculation: `${formatEligibleRupee(calc.applicantGross)} + ${formatEligibleRupee(calc.coApplicantGross)}`,
+      result: formatEligibleRupee(calc.totalGrossSalary),
+    },
+    {
+      id: 'foirMax',
+      title: 'Max EMI at FOIR limit',
+      formula: 'Gross income × FOIR% (on gross, before deductions)',
+      calculation: `${formatEligibleRupee(calc.totalGrossSalary)} × ${calc.foir}%`,
+      result: formatEligibleRupee(calc.foirAmount),
+    },
+    {
+      id: 'totalCurrent',
+      title: 'Total current EMI (incl. salary deduction)',
+      formula: 'Current loan EMI + Salary deduction',
+      calculation: `${formatEligibleRupee(calc.currentEmi)} + ${formatEligibleRupee(calc.salaryDeduction)}`,
+      result: formatEligibleRupee(calc.totalCurrentEmi),
+    },
+    {
+      id: 'eligibleEmi',
+      title: 'Eligible EMI (for new loan)',
+      formula: 'Max EMI at FOIR − Total current EMI',
+      calculation: `${formatEligibleRupee(calc.foirAmount)} − ${formatEligibleRupee(calc.totalCurrentEmi)}`,
+      result: formatEligibleRupee(calc.eligibleEmiPerMonth),
+    },
+    {
+      id: 'tenure',
+      title: 'Eligible tenure (age cap)',
+      formula: `min(${MAX_TENURE_MONTHS_ELIGIBILITY} mo, (${MAX_AGE_AT_LOAN_END} − age) × 12)`,
+      calculation: `Requested ${calc.requestedTenure} mo · max allowed ${calc.maxAllowedTenure} mo`,
+      result: `${calc.finalTenure} months`,
+    },
+    {
+      id: 'newEmi',
+      title: 'New loan EMI',
+      formula: 'P × R × (1+R)^N / [(1+R)^N − 1]',
+      calculation: `P = ${formatEligibleRupee(parseNum(formLike.loanAmount))}, ${calc.finalTenure} mo @ ${getEffectiveInterestRate(formLike)}%`,
+      result: `${formatEligibleRupee(calc.loanEmiPerMonth)}/mo`,
+    },
+    {
+      id: 'foirCheck',
+      title: 'FOIR / eligibility check',
+      formula: 'Eligible EMI − New loan EMI (≥ 0 to pass)',
+      calculation: `${formatEligibleRupee(calc.eligibleEmiPerMonth)} − ${formatEligibleRupee(calc.loanEmiPerMonth)}`,
+      result: `${formatEligibleRupee(calc.emiGap)} gap · ${Math.round(calc.actualFoirPct * 10) / 10}% of gross`,
+      passed: calc.isEligible,
+    },
+    {
+      id: 'maxLoan',
+      title: 'Max eligible loan (approx.)',
+      formula: 'Principal from eligible EMI (reducing balance)',
+      calculation: `EMI ${formatEligibleRupee(calc.eligibleEmiPerMonth)}/mo · ${calc.finalTenure} mo · ${getEffectiveInterestRate(formLike)}%`,
+      result: formatEligibleRupee(calc.maxLoanFromEligibleEmi),
+    },
+  ]
+
+  return { ready: true, steps, calc }
+}
+
 /**
  * Plain-language message when FOIR / EMI limit check fails on submit.
  */
 export function formatFoirFailureMessage(formLike = {}) {
-  const netIncome = computeNetMonthlyIncome(formLike)
-  const foirLimit = getFoirLimitPct(formLike)
-  const loanAmt = parseNum(formLike.loanAmount)
-  const tenure = getLeadTenureMonths(formLike)
-  const rate = getEffectiveInterestRate(formLike) ?? ELIGIBILITY_ASSUMED_RATE_PCT
-  const newEmi = estimateEmi(loanAmt, rate, tenure) ?? 0
-  const currentEmi = parseNum(formLike.currentEmi) || 0
-  const totalEmi = newEmi + currentEmi
+  const calc = calculateEligibilityFromForm(formLike, getFoirLimitPct(formLike))
 
-  if (!Number.isFinite(netIncome) || netIncome <= 0) {
-    return 'Please enter gross income and deductions to check FOIR.'
+  if (!calc.totalGrossSalary) {
+    return 'Please enter gross income to check FOIR (calculated on gross salary).'
   }
 
-  const actualPct = Math.round((totalEmi / netIncome) * 100)
   const foirEntered = parseNum(formLike.foir)
-  const maxAllowedEmi = netIncome * (foirLimit / 100)
   let limitHint = ''
   if (Number.isFinite(foirEntered) && foirEntered > 60) {
     limitHint = ' Use FOIR limit 50% (bank standard), not 90.'
-  } else if (Number.isFinite(foirEntered) && foirEntered < 40) {
-    limitHint =
-      ` You entered ${foirEntered}% — that makes the rule stricter. Use 50% (bank limit). Max EMI at ${foirEntered}% would be only ${formatEligibleRupee(maxAllowedEmi)}/mo.`
   }
 
   return (
-    `Total monthly EMIs (${formatEligibleRupee(totalEmi)}) are ${actualPct}% of net income ` +
-    `(${formatEligibleRupee(netIncome)}). Your FOIR limit is ${foirLimit}% ` +
-    `(max EMI ${formatEligibleRupee(maxAllowedEmi)}/mo). Reduce loan amount or current EMI.${limitHint}`
+    `New loan EMI (${formatEligibleRupee(calc.loanEmiPerMonth)}) exceeds eligible EMI ` +
+    `(${formatEligibleRupee(calc.eligibleEmiPerMonth)}). ` +
+    `Total EMIs are ${Math.round(calc.actualFoirPct * 10) / 10}% of gross ` +
+    `(${formatEligibleRupee(calc.totalGrossSalary)}); FOIR limit is ${calc.foir}%. ` +
+    `Reduce loan amount or tenure.${limitHint}`
   )
 }
 
 /** Console debug for FOIR — open browser DevTools → Console when saving a lead. */
 export function logFoirEligibilityDebug(formLike = {}, snapshot = null) {
-  const netIncome = computeNetMonthlyIncome(formLike)
-  const foirLimit = getFoirLimitPct(formLike)
-  const loanAmt = parseNum(formLike.loanAmount)
-  const tenure = getLeadTenureMonths(formLike)
-  const rate = getEffectiveInterestRate(formLike) ?? ELIGIBILITY_ASSUMED_RATE_PCT
-  const newEmi = estimateEmi(loanAmt, rate, tenure) ?? 0
-  const currentEmi = parseNum(formLike.currentEmi) || 0
-  const totalEmi = newEmi + currentEmi
-  const actualPct = netIncome > 0 ? (totalEmi / netIncome) * 100 : NaN
-  const maxAllowedEmi = netIncome > 0 ? netIncome * (foirLimit / 100) : 0
-  const passed = Number.isFinite(actualPct) && actualPct <= foirLimit
+  const calc = calculateEligibilityFromForm(formLike, getFoirLimitPct(formLike))
+  const passed = calc.isEligible
 
   console.group('[Lead FOIR eligibility]')
   console.log('Inputs:', {
     foirLimitEntered: formLike.foir,
     grossIncome: formLike.grossIncome,
-    salary: formLike.salary,
+    coApplicantGross: formLike.coApplicantGross,
     deduction: formLike.deduction,
     currentEmi: formLike.currentEmi,
     loanAmount: formLike.loanAmount,
     tenureMonths: formLike.tenureMonths,
     rateOfInterest: formLike.rateOfInterest,
+    applicantAge: formLike.applicantAge,
   })
   console.log('Calculated:', {
-    netMonthlyIncome: Math.round(netIncome),
-    estimatedNewLoanEmi: Math.round(newEmi),
-    totalMonthlyEmi: Math.round(totalEmi),
-    actualFoirPercent: `${Math.round(actualPct * 10) / 10}%`,
-    foirLimitPercent: `${foirLimit}%`,
-    maxEmiAllowedAtThisLimit: Math.round(maxAllowedEmi),
-    foirCheckPassed: passed,
-    formula: '(current EMI + new loan EMI) ÷ net income × 100 ≤ FOIR limit %',
+    totalGrossSalary: Math.round(calc.totalGrossSalary),
+    maxEmiAtFoir: Math.round(calc.foirAmount),
+    eligibleEmiPerMonth: Math.round(calc.eligibleEmiPerMonth),
+    newLoanEmi: Math.round(calc.loanEmiPerMonth),
+    emiGap: Math.round(calc.emiGap),
+    finalTenureMonths: calc.finalTenure,
+    actualFoirPercent: `${Math.round(calc.actualFoirPct * 10) / 10}%`,
+    foirLimitPercent: `${calc.foir}%`,
+    isEligible: calc.isEligible,
+    formula:
+      'FOIR on gross; eligible EMI = gross×FOIR% − (current EMI + salary deduction); pass if new EMI ≤ eligible EMI',
   })
   if (snapshot?.checks) {
     console.log(
@@ -175,13 +239,13 @@ export function logFoirEligibilityDebug(formLike = {}, snapshot = null) {
   }
   if (!passed) {
     console.warn(
-      `[Lead FOIR] FAILED: ${Math.round(actualPct)}% > ${foirLimit}% limit. ` +
-        `Need total EMI ≤ ${Math.round(maxAllowedEmi)} but have ${Math.round(totalEmi)}.`
+      `[Lead FOIR] FAILED: EMI gap ${Math.round(calc.emiGap)}. ` +
+        `Eligible EMI ${Math.round(calc.eligibleEmiPerMonth)}, new loan EMI ${Math.round(calc.loanEmiPerMonth)}.`
     )
   }
   console.groupEnd()
 
-  return { netIncome, foirLimit, totalEmi, actualPct, maxAllowedEmi, passed }
+  return { calc, passed }
 }
 
 /** User-friendly toast when eligibility checklist blocks submit. */
@@ -300,29 +364,24 @@ export function computeLeadEligibilitySnapshot(formLike) {
     })
   }
 
-  const netIncome = computeNetMonthlyIncome(formLike)
   const foirPct = getFoirLimitPct(formLike)
-  const tenure = getLeadTenureMonths(formLike)
+  const calc = calculateEligibilityFromForm(formLike, foirPct)
+  const tenure = calc.finalTenure || getLeadTenureMonths(formLike)
   const rate = getEffectiveInterestRate(formLike) ?? ELIGIBILITY_ASSUMED_RATE_PCT
 
-  if (Number.isFinite(netIncome) && netIncome > 0 && Number.isFinite(loanAmt) && loanAmt > 0) {
-    const newEmi = estimateEmi(loanAmt, rate, tenure)
-    const currentEmi = parseNum(formLike.currentEmi)
-    const totalEmi =
-      newEmi != null && Number.isFinite(currentEmi) ? currentEmi + newEmi : newEmi
-    const ratio = totalEmi != null && netIncome > 0 ? totalEmi / netIncome : Infinity
-    const ok = Number.isFinite(ratio) && ratio * 100 <= foirPct
-    const actualFoirPct =
-      totalEmi != null && netIncome > 0 ? Math.round((totalEmi / netIncome) * 100) : null
+  if (calc.totalGrossSalary > 0 && Number.isFinite(loanAmt) && loanAmt > 0 && calc.loanEmiPerMonth > 0) {
+    const ok = calc.isEligible
+    const actualFoirPct = Math.round(calc.actualFoirPct)
     checks.push({
       id: 'foirCheck',
-      label: `EMI within FOIR limit (max ${foirPct}%)`,
+      label: `EMI within FOIR limit (max ${foirPct}% on gross)`,
       ok,
       required: true,
       detail:
-        actualFoirPct != null
-          ? `Net income ${formatEligibleRupee(netIncome)}/mo · EMIs ${formatEligibleRupee(totalEmi)}/mo (${actualFoirPct}% of income)`
-          : undefined,
+        `Gross ${formatEligibleRupee(calc.totalGrossSalary)}/mo · ` +
+        `Total current EMI ${formatEligibleRupee(calc.totalCurrentEmi)} · ` +
+        `Eligible ${formatEligibleRupee(calc.eligibleEmiPerMonth)} · ` +
+        `New loan EMI ${formatEligibleRupee(calc.loanEmiPerMonth)} (${actualFoirPct}% FOIR)`,
     })
   }
 
@@ -348,12 +407,12 @@ export function computeLeadEligibilitySnapshot(formLike) {
     headline: null,
     subline: null,
     cibilNote: cibilAdjLabel,
-    tenureUsed: tenure,
+    tenureUsed: calc.finalTenure || tenure,
   }
 
-  if (!Number.isFinite(netIncome) || netIncome <= 0) {
-    amountInsight.headline = 'Enter gross income and deduction to see approximate max loan'
-    amountInsight.subline = `Uses FOIR ${foirPct}%, ${rate}% p.a., ${tenure} month tenure.`
+  if (!calc.totalGrossSalary) {
+    amountInsight.headline = 'Enter gross income to see approximate max loan'
+    amountInsight.subline = `FOIR on gross salary · ${foirPct}% · ${rate}% p.a. · ${tenure} mo tenure.`
   } else if (maxEligible == null) {
     amountInsight.headline = 'Could not estimate loan from income'
     amountInsight.subline = 'Check FOIR limit and current EMI leave room for a new loan.'
@@ -373,6 +432,8 @@ export function computeLeadEligibilitySnapshot(formLike) {
     }
   }
 
+  const calculationBreakdown = buildCalculationBreakdown(formLike, calc)
+
   const baseSnapshot = {
     checks,
     passed,
@@ -380,10 +441,104 @@ export function computeLeadEligibilitySnapshot(formLike) {
     requiredPassed,
     percent: total ? Math.round((passed / total) * 100) : 0,
     amountInsight,
+    calculationBreakdown,
+    eligibilityCalc: calc,
   }
 
   return {
     ...baseSnapshot,
     ...appendLeadEligibilityTracking(formLike, baseSnapshot),
   }
+}
+
+/**
+ * Plain-text summary of eligibility preview (for clipboard).
+ */
+export function formatEligibilityPreviewForCopy(snapshot = {}) {
+  const lines = []
+  const eligibilityPercent = snapshot.eligibilityPercent ?? 0
+  const requiredPassed = snapshot.requiredPassed ?? false
+  const insight = snapshot.amountInsight ?? {}
+  const breakdown = snapshot.calculationBreakdown
+  const calc = breakdown?.calc ?? snapshot.eligibilityCalc
+
+  lines.push('ELIGIBILITY PREVIEW')
+  lines.push('═'.repeat(40))
+  lines.push(`Status: ${eligibilityPercent}% · ${requiredPassed ? 'Required met' : 'Incomplete'}`)
+  lines.push('')
+
+  if (breakdown?.ready && calc) {
+    lines.push('HOME LOAN ELIGIBILITY CALCULATION')
+    lines.push('─'.repeat(40))
+    lines.push(`Total gross / month:     ${formatEligibleRupee(calc.totalGrossSalary)}`)
+    lines.push(`FOIR limit:              ${calc.foir}%`)
+    lines.push(`Max EMI at FOIR:         ${formatEligibleRupee(calc.foirAmount)}`)
+    lines.push(`Current loan EMI:        ${formatEligibleRupee(calc.currentEmi)}`)
+    lines.push(`Salary deduction:        ${formatEligibleRupee(calc.salaryDeduction)}`)
+    lines.push(`Total current EMI:       ${formatEligibleRupee(calc.totalCurrentEmi)}`)
+    lines.push(`Eligible EMI:            ${formatEligibleRupee(calc.eligibleEmiPerMonth)}`)
+    lines.push(`New loan EMI:            ${formatEligibleRupee(calc.loanEmiPerMonth)}`)
+    lines.push(`EMI gap:                 ${formatEligibleRupee(calc.emiGap)}`)
+    lines.push(`FOIR (with new loan):    ${Math.round(calc.actualFoirPct * 10) / 10}%`)
+    lines.push(`Eligibility:             ${calc.isEligible ? 'PASS' : 'FAIL'}`)
+    lines.push(`Tenure used:             ${calc.finalTenure} months`)
+    lines.push('')
+
+    if (breakdown.steps?.length) {
+      lines.push('STEP-BY-STEP')
+      lines.push('─'.repeat(40))
+      breakdown.steps.forEach((step, i) => {
+        const status =
+          step.passed === true ? ' [Pass]' : step.passed === false ? ' [Over limit]' : ''
+        lines.push(`${i + 1}. ${step.title}${status}`)
+        lines.push(`   Formula: ${step.formula}`)
+        lines.push(`   = ${step.calculation}`)
+        lines.push(`   → ${step.result}`)
+        lines.push('')
+      })
+    }
+  } else if (breakdown?.missing?.length) {
+    lines.push('Complete these fields to see calculation:')
+    lines.push(breakdown.missing.join(', '))
+    lines.push('')
+  }
+
+  lines.push('MAX ELIGIBLE LOAN (APPROX.)')
+  lines.push('─'.repeat(40))
+  if (insight.maxEligibleDisplay) {
+    lines.push(`Amount: ${insight.maxEligibleDisplay}`)
+    if (insight.headline) lines.push(insight.headline)
+    if (insight.subline) lines.push(insight.subline)
+    if (insight.requestedDisplay) lines.push(`Requested: ${insight.requestedDisplay}`)
+  } else if (insight.headline) {
+    lines.push(insight.headline)
+    if (insight.subline) lines.push(insight.subline)
+  }
+  if (insight.cibilNote) lines.push(`Note: ${insight.cibilNote}`)
+  lines.push('')
+
+  const checklist = snapshot.checklist ?? []
+  if (checklist.length) {
+    lines.push('CHECKLIST')
+    lines.push('─'.repeat(40))
+    checklist.forEach((item) => {
+      lines.push(`${item.status ? '✓' : '✕'} ${item.label}${item.required ? ' *' : ''}`)
+    })
+    lines.push('')
+  }
+
+  const checks = snapshot.checks ?? []
+  if (checks.length) {
+    lines.push(`DETAILED CHECKS (${snapshot.passed}/${snapshot.total})`)
+    lines.push('─'.repeat(40))
+    checks.forEach((c) => {
+      lines.push(`${c.ok ? '✓' : '✕'} ${c.label}`)
+      if (c.detail) lines.push(`   ${c.detail}`)
+    })
+  }
+
+  lines.push('')
+  lines.push('Indicative only — final sanction depends on lender policy.')
+
+  return lines.join('\n')
 }

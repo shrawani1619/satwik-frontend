@@ -6,6 +6,7 @@ import {
   parseMoney,
 } from './leadIncomeFields'
 import { getLeadTenureMonths } from './loanTenure'
+import { calculateEligibilityFromForm } from './loanEligibilityCalculations'
 
 const ELIGIBILITY_MIN_CIBIL = 650
 const ELIGIBILITY_ASSUMED_RATE_PCT = 10.5
@@ -162,22 +163,11 @@ function isLoanAmountValid(formLike = {}) {
   return Number.isFinite(loan) && loan > 0
 }
 
-/** Uses existing EMI/FOIR helpers — does not change calculation logic. */
 function isFoirPassed(formLike = {}) {
-  const netIncome = computeNetMonthlyIncome(formLike)
-  const loanAmt = parseMoney(formLike.loanAmount)
-  if (!Number.isFinite(netIncome) || netIncome <= 0 || !Number.isFinite(loanAmt) || loanAmt <= 0) {
-    return false
-  }
-  const tenure = getLeadTenureMonths(formLike)
-  const rate = getEffectiveInterestRate(formLike) ?? 10.5
   const foirPct = getFoirLimitPct(formLike)
-  const newEmi = estimateEmi(loanAmt, rate, tenure)
-  const currentEmi = parseMoney(formLike.currentEmi)
-  const totalEmi =
-    newEmi != null && Number.isFinite(currentEmi) ? currentEmi + newEmi : newEmi
-  const ratio = totalEmi != null && netIncome > 0 ? totalEmi / netIncome : Infinity
-  return Number.isFinite(ratio) && ratio * 100 <= foirPct
+  const calc = calculateEligibilityFromForm(formLike, foirPct)
+  if (!calc.totalGrossSalary || !calc.loanEmiPerMonth) return false
+  return calc.isEligible
 }
 
 function isCibilPassed(formLike = {}) {
