@@ -962,6 +962,11 @@ const Leads = () => {
   const handleStatusSelectChange = (lead, newStatus) => {
     const leadId = lead?.id || lead?._id
     const prevStatus = lead?.status || 'logged'
+    if (newStatus === prevStatus) {
+      console.warn('[Leads] Status unchanged — no API call', { leadId, status: prevStatus })
+      toast.info('No change', 'Lead is already in this status.')
+      return
+    }
     if (
       newStatus === SANCTION_STATUS &&
       prevStatus !== SANCTION_STATUS
@@ -973,7 +978,7 @@ const Leads = () => {
       setIsSanctionModalOpen(true)
       return
     }
-    handleStatusUpdate(leadId, newStatus)
+    handleStatusUpdate(leadId, newStatus, prevStatus)
   }
 
   const submitSanctionStatus = async () => {
@@ -1002,6 +1007,9 @@ const Leads = () => {
       if (invNo) payload.invoiceNumber = invNo
 
       const res = await api.leads.updateStatus(leadId, payload)
+      if (res?.whatsapp) {
+        console.error('[WhatsApp] status update response', res.whatsapp)
+      }
       await fetchLeads()
       closeSanctionModal()
       if (res?.invoiceError) {
@@ -1017,14 +1025,23 @@ const Leads = () => {
     }
   }
 
-  const handleStatusUpdate = async (leadId, newStatus) => {
+  const handleStatusUpdate = async (leadId, newStatus, previousStatus) => {
     if (!leadId) {
       console.error('Lead ID is missing')
       toast.error('Error', 'Lead ID is missing')
       return
     }
+    if (previousStatus && newStatus === previousStatus) {
+      console.warn('[Leads] Status unchanged — no API call', { leadId, status: newStatus })
+      toast.info('No change', 'Lead is already in this status.')
+      return
+    }
     try {
-      await api.leads.updateStatus(leadId, newStatus)
+      console.error('[Leads] PUT status', { leadId, from: previousStatus, to: newStatus })
+      const res = await api.leads.updateStatus(leadId, newStatus)
+      if (res?.whatsapp) {
+        console.error('[WhatsApp] status update response', res.whatsapp)
+      }
       await fetchLeads()
       toast.success('Success', 'Lead status updated successfully')
     } catch (error) {

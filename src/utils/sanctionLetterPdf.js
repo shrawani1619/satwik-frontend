@@ -1,5 +1,6 @@
 import api from '../services/api';
 import { toast } from '../services/toastService';
+import { logTemplateUsage } from './templateLogger';
 
 /**
  * Download sanction letter for a lead. Always regenerates first so logo/template changes apply.
@@ -13,6 +14,14 @@ export async function downloadSanctionLetterForLead(lead, { onMetaUpdate } = {})
   }
 
   const res = await api.leads.generateSanctionLetterPdf(id);
+  const pdf = res?.data?.pdf;
+  if (pdf?.templateName) {
+    logTemplateUsage({
+      channel: pdf.templateChannel || 'sanction-letter-pdf',
+      templateName: pdf.templateName,
+      leadId: id,
+    });
+  }
   const pdfMeta = res?.data?.sanctionLetterPdf;
   if (pdfMeta && onMetaUpdate) {
     onMetaUpdate(String(id), pdfMeta);

@@ -245,7 +245,7 @@ export function buildLeadEligibilityChecklist(formLike = {}, snapshotChecks = []
       required: true,
     },
     {
-      label: 'FOIR passed',
+      label: 'EMI within FOIR limit',
       status: foirStatus,
       required: true,
     },

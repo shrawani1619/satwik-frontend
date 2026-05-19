@@ -19,7 +19,11 @@ import {
   buildLeadEligibilityValidationErrors,
   validationErrorsToFieldMap,
 } from '../utils/leadEligibilityTracking'
-import { computeLeadEligibilitySnapshot } from '../utils/leadEligibility'
+import {
+  computeLeadEligibilitySnapshot,
+  formatEligibilitySubmitError,
+  logFoirEligibilityDebug,
+} from '../utils/leadEligibility'
 
 const LeadForm = ({ onClose, onSave, lead }) => {
   const currentUser = authService.getUser()
@@ -351,9 +355,13 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       }
 
       const snapshot = computeLeadEligibilitySnapshot(formData)
+      logFoirEligibilityDebug(formData, snapshot)
       if (!snapshot.requiredPassed) {
-        const firstFailed = (snapshot.checklist ?? []).find((item) => item.required && !item.status)
-        toast.error(firstFailed?.label ? `${firstFailed.label} not satisfied` : 'Complete required eligibility checks')
+        console.warn('[Lead submit] Eligibility blocked:', {
+          requiredPassed: snapshot.requiredPassed,
+          failedChecklist: (snapshot.checklist ?? []).filter((i) => i.required && !i.status),
+        })
+        toast.error(formatEligibilitySubmitError(formData, snapshot))
         setLoading(false)
         return
       }
@@ -741,9 +749,13 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
                     errors.foir ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="e.g. 50"
+                  placeholder="50"
                   required
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Bank&apos;s <strong>maximum</strong> FOIR allowed (not your score). Use <strong>50</strong>{' '}
+                  (typical). Lower values like 10% are <strong>stricter</strong> — not easier to pass.
+                </p>
                 {errors.foir && <p className="mt-1 text-xs text-red-600">{errors.foir}</p>}
               </div>
 

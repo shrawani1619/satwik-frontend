@@ -98,6 +98,120 @@ export function formatEligibleRupee(n) {
 }
 
 /**
+ * Plain-language message when FOIR / EMI limit check fails on submit.
+ */
+export function formatFoirFailureMessage(formLike = {}) {
+  const netIncome = computeNetMonthlyIncome(formLike)
+  const foirLimit = getFoirLimitPct(formLike)
+  const loanAmt = parseNum(formLike.loanAmount)
+  const tenure = getLeadTenureMonths(formLike)
+  const rate = getEffectiveInterestRate(formLike) ?? ELIGIBILITY_ASSUMED_RATE_PCT
+  const newEmi = estimateEmi(loanAmt, rate, tenure) ?? 0
+  const currentEmi = parseNum(formLike.currentEmi) || 0
+  const totalEmi = newEmi + currentEmi
+
+  if (!Number.isFinite(netIncome) || netIncome <= 0) {
+    return 'Please enter gross income and deductions to check FOIR.'
+  }
+
+  const actualPct = Math.round((totalEmi / netIncome) * 100)
+  const foirEntered = parseNum(formLike.foir)
+  const maxAllowedEmi = netIncome * (foirLimit / 100)
+  let limitHint = ''
+  if (Number.isFinite(foirEntered) && foirEntered > 60) {
+    limitHint = ' Use FOIR limit 50% (bank standard), not 90.'
+  } else if (Number.isFinite(foirEntered) && foirEntered < 40) {
+    limitHint =
+      ` You entered ${foirEntered}% — that makes the rule stricter. Use 50% (bank limit). Max EMI at ${foirEntered}% would be only ${formatEligibleRupee(maxAllowedEmi)}/mo.`
+  }
+
+  return (
+    `Total monthly EMIs (${formatEligibleRupee(totalEmi)}) are ${actualPct}% of net income ` +
+    `(${formatEligibleRupee(netIncome)}). Your FOIR limit is ${foirLimit}% ` +
+    `(max EMI ${formatEligibleRupee(maxAllowedEmi)}/mo). Reduce loan amount or current EMI.${limitHint}`
+  )
+}
+
+/** Console debug for FOIR — open browser DevTools → Console when saving a lead. */
+export function logFoirEligibilityDebug(formLike = {}, snapshot = null) {
+  const netIncome = computeNetMonthlyIncome(formLike)
+  const foirLimit = getFoirLimitPct(formLike)
+  const loanAmt = parseNum(formLike.loanAmount)
+  const tenure = getLeadTenureMonths(formLike)
+  const rate = getEffectiveInterestRate(formLike) ?? ELIGIBILITY_ASSUMED_RATE_PCT
+  const newEmi = estimateEmi(loanAmt, rate, tenure) ?? 0
+  const currentEmi = parseNum(formLike.currentEmi) || 0
+  const totalEmi = newEmi + currentEmi
+  const actualPct = netIncome > 0 ? (totalEmi / netIncome) * 100 : NaN
+  const maxAllowedEmi = netIncome > 0 ? netIncome * (foirLimit / 100) : 0
+  const passed = Number.isFinite(actualPct) && actualPct <= foirLimit
+
+  console.group('[Lead FOIR eligibility]')
+  console.log('Inputs:', {
+    foirLimitEntered: formLike.foir,
+    grossIncome: formLike.grossIncome,
+    salary: formLike.salary,
+    deduction: formLike.deduction,
+    currentEmi: formLike.currentEmi,
+    loanAmount: formLike.loanAmount,
+    tenureMonths: formLike.tenureMonths,
+    rateOfInterest: formLike.rateOfInterest,
+  })
+  console.log('Calculated:', {
+    netMonthlyIncome: Math.round(netIncome),
+    estimatedNewLoanEmi: Math.round(newEmi),
+    totalMonthlyEmi: Math.round(totalEmi),
+    actualFoirPercent: `${Math.round(actualPct * 10) / 10}%`,
+    foirLimitPercent: `${foirLimit}%`,
+    maxEmiAllowedAtThisLimit: Math.round(maxAllowedEmi),
+    foirCheckPassed: passed,
+    formula: '(current EMI + new loan EMI) ÷ net income × 100 ≤ FOIR limit %',
+  })
+  if (snapshot?.checks) {
+    console.log(
+      'Snapshot foir check:',
+      snapshot.checks.find((c) => c.id === 'foirCheck')
+    )
+  }
+  if (!passed) {
+    console.warn(
+      `[Lead FOIR] FAILED: ${Math.round(actualPct)}% > ${foirLimit}% limit. ` +
+        `Need total EMI ≤ ${Math.round(maxAllowedEmi)} but have ${Math.round(totalEmi)}.`
+    )
+  }
+  console.groupEnd()
+
+  return { netIncome, foirLimit, totalEmi, actualPct, maxAllowedEmi, passed }
+}
+
+/** User-friendly toast when eligibility checklist blocks submit. */
+export function formatEligibilitySubmitError(formLike = {}, snapshot = {}) {
+  const checklist = snapshot.checklist ?? []
+  const failed = checklist.find((item) => item.required && !item.status)
+  if (!failed) {
+    return 'Please complete all required eligibility checks.'
+  }
+
+  if (failed.label === 'FOIR passed' || failed.label === 'EMI within FOIR limit') {
+    return formatFoirFailureMessage(formLike)
+  }
+
+  const messages = {
+    'Required fields completed': 'Please fill all required fields before saving.',
+    'Age validation': 'Applicant age must be between 21 and 75 years.',
+    'Mobile validation': 'Enter a valid 10-digit mobile number.',
+    'Income validation': 'Gross income must be greater than zero.',
+    'Loan amount validation': 'Loan amount must be greater than zero.',
+    'Bank selected': 'Please select a bank.',
+    'Loan type selected': 'Please select a loan type.',
+    'Advance payment validation':
+      'Enter disbursed amount when advance payment is Yes.',
+  }
+
+  return messages[failed.label] || `Please fix: ${failed.label}.`
+}
+
+/**
  * Live eligibility snapshot for lead create/edit form.
  */
 export function computeLeadEligibilitySnapshot(formLike) {
@@ -198,14 +312,16 @@ export function computeLeadEligibilitySnapshot(formLike) {
       newEmi != null && Number.isFinite(currentEmi) ? currentEmi + newEmi : newEmi
     const ratio = totalEmi != null && netIncome > 0 ? totalEmi / netIncome : Infinity
     const ok = Number.isFinite(ratio) && ratio * 100 <= foirPct
+    const actualFoirPct =
+      totalEmi != null && netIncome > 0 ? Math.round((totalEmi / netIncome) * 100) : null
     checks.push({
       id: 'foirCheck',
-      label: `Total EMI (current + new) ≤ ${foirPct}% of net income`,
+      label: `EMI within FOIR limit (max ${foirPct}%)`,
       ok,
       required: true,
       detail:
-        newEmi != null && Number.isFinite(netIncome)
-          ? `Net ₹${Math.round(netIncome).toLocaleString('en-IN')}/mo · new ~₹${Math.round(newEmi).toLocaleString('en-IN')} @ ${rate}%`
+        actualFoirPct != null
+          ? `Net income ${formatEligibleRupee(netIncome)}/mo · EMIs ${formatEligibleRupee(totalEmi)}/mo (${actualFoirPct}% of income)`
           : undefined,
     })
   }
