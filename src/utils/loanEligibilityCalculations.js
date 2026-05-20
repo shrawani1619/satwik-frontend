@@ -50,8 +50,7 @@ function num(v) {
  */
 export function mapFormToEligibilityData(formLike = {}, foirDefaultPct = 50) {
   const foirRaw = num(formLike.foir)
-  const gross =
-    num(formLike.grossIncome) > 0 ? num(formLike.grossIncome) : num(formLike.salary)
+  const gross = num(formLike.grossIncome)
 
   return {
     applicantGross: gross,

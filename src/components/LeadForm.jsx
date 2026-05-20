@@ -394,6 +394,9 @@ const LeadForm = ({ onClose, onSave, lead }) => {
         ...serializeLeadIncomeFields(formData),
       }
 
+      // Salary field removed from form — do not send on create/update
+      delete submitData.salary
+
       // Remove empty fields
       Object.keys(submitData).forEach(key => {
         if (submitData[key] === '' || submitData[key] === null || submitData[key] === undefined) {
@@ -837,7 +840,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Deduction Of Salary <span className="text-red-500">*</span>
+                  Applicant deduction (₹) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"

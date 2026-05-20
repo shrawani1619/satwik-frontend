@@ -15,6 +15,9 @@ export function parseMoney(v) {
 export function pickLeadField(lead, field, altKeys = []) {
   if (!lead) return ''
   if (lead[field] != null && lead[field] !== '') return lead[field]
+  for (const k of altKeys) {
+    if (lead[k] != null && lead[k] !== '') return lead[k]
+  }
   const fv = lead.formValues
   if (fv && fv[field] != null && fv[field] !== '') return fv[field]
   for (const k of altKeys) {
@@ -28,10 +31,6 @@ export function computeNetMonthlyIncome(formLike) {
   const deduction = parseMoney(formLike.deduction)
   if (Number.isFinite(gross) && gross > 0 && Number.isFinite(deduction) && deduction >= 0) {
     return gross - deduction
-  }
-  const salary = parseMoney(formLike.salary)
-  if (Number.isFinite(salary) && salary > 0 && Number.isFinite(deduction) && deduction >= 0) {
-    return salary - deduction
   }
   return parseMoney(formLike.monthlyIncome)
 }

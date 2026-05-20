@@ -2750,158 +2750,178 @@ const Leads = () => {
         size="md"
       >
         {selectedLead && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Email</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.applicantEmail || selectedLead.email || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Mobile</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.applicantMobile || selectedLead.phone || selectedLead.mobile || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Loan Type</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.loanType || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Loan Amount</label>
-                <p className="mt-1 text-sm text-gray-900">{formatIndianRupee(selectedLead.loanAmount || selectedLead.amount || 0)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Project name</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {selectedLead.projectName ||
-                    selectedLead.formValues?.projectName ||
-                    selectedLead.formValues?.project_name ||
-                    'N/A'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Status</label>
-                <div className="mt-1">
-                  <StatusBadge status={selectedLead.status || 'logged'} />
+          <div className="space-y-5">
+            {/* Customer Details */}
+            <div className="rounded-xl border border-gray-200 p-4">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Customer Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Customer Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.customerName || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Co-applicant Name</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedLead.coApplicantName || selectedLead.formValues?.coApplicantName || selectedLead.formValues?.co_applicant_name || 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Email</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.applicantEmail || selectedLead.email || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Mobile</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.applicantMobile || selectedLead.phone || selectedLead.mobile || 'N/A'}</p>
                 </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Agent</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {(() => {
-                    if (selectedLead.agentName) return selectedLead.agentName;
-                    // Check if agent is populated object
-                    if (selectedLead.agent && typeof selectedLead.agent === 'object' && selectedLead.agent.name) {
-                      return selectedLead.agent.name
-                    }
-                    // Check agentId or agent ID
-                    const agentId = selectedLead.agentId || (selectedLead.agent && (selectedLead.agent._id || selectedLead.agent.id)) || selectedLead.agent
-                    return getAgentName(agentId)
-                  })()}
-                </p>
+            </div>
+
+            {/* Loan Details */}
+            <div className="rounded-xl border border-gray-200 p-4">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Loan Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Loan Type</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.loanType || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Loan Amount</label>
+                  <p className="mt-1 text-sm text-gray-900">{formatIndianRupee(selectedLead.loanAmount || selectedLead.amount || 0)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Project name</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedLead.projectName ||
+                      selectedLead.formValues?.projectName ||
+                      selectedLead.formValues?.project_name ||
+                      'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Status</label>
+                  <div className="mt-1">
+                    <StatusBadge status={selectedLead.status || 'logged'} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Disbursement Date</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedLead.disbursementDate ? new Date(selectedLead.disbursementDate).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Sub Agent</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {(() => {
-                    // First check subAgentName field (stored directly on lead - most reliable)
-                    if (selectedLead.subAgentName) {
-                      return selectedLead.subAgentName;
-                    }
-                    
-                    // Then check if subAgent is populated as an object with name (from backend populate)
-                    if (selectedLead.subAgent) {
-                      // Handle populated object
-                      if (typeof selectedLead.subAgent === 'object' && selectedLead.subAgent !== null) {
-                        if (selectedLead.subAgent.name) {
-                          return selectedLead.subAgent.name;
+            </div>
+
+            {/* Bank Details */}
+            <div className="rounded-xl border border-gray-200 p-4">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Bank Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Bank</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedLead.bank?.name || getBankName(selectedLead.bankId || selectedLead.bank) || 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Branch</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.branch || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">SM/BM Name</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {(() => {
+                      if (selectedLead.smBm && typeof selectedLead.smBm === 'object' && selectedLead.smBm.name) {
+                        return selectedLead.smBm.name
+                      }
+                      const smBmId = selectedLead.smBmId || (selectedLead.smBm && (selectedLead.smBm._id || selectedLead.smBm.id)) || selectedLead.smBm
+                      return getStaffName(smBmId)
+                    })()}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">SM/BM Email</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.smBmEmail || selectedLead.smBm?.email || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">SM/BM Mobile</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.smBmMobile || selectedLead.smBm?.mobile || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Other Details */}
+            <div className="rounded-xl border border-gray-200 p-4">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Other Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Agent</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {(() => {
+                      if (selectedLead.agentName) return selectedLead.agentName;
+                      if (selectedLead.agent && typeof selectedLead.agent === 'object' && selectedLead.agent.name) {
+                        return selectedLead.agent.name
+                      }
+                      const agentId = selectedLead.agentId || (selectedLead.agent && (selectedLead.agent._id || selectedLead.agent.id)) || selectedLead.agent
+                      return getAgentName(agentId)
+                    })()}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Sub Agent</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {(() => {
+                      if (selectedLead.subAgentName) {
+                        return selectedLead.subAgentName;
+                      }
+                      if (selectedLead.subAgent) {
+                        if (typeof selectedLead.subAgent === 'object' && selectedLead.subAgent !== null) {
+                          if (selectedLead.subAgent.name) {
+                            return selectedLead.subAgent.name;
+                          }
+                          if (selectedLead.subAgent._id || selectedLead.subAgent.id) {
+                            const subAgentName = getSubAgentName(selectedLead.subAgent);
+                            if (subAgentName !== 'N/A') {
+                              return subAgentName;
+                            }
+                          }
                         }
-                        // If it has _id or id but no name, try lookup
-                        if (selectedLead.subAgent._id || selectedLead.subAgent.id) {
+                        if (typeof selectedLead.subAgent === 'string') {
                           const subAgentName = getSubAgentName(selectedLead.subAgent);
                           if (subAgentName !== 'N/A') {
                             return subAgentName;
                           }
                         }
                       }
-                      
-                      // Handle ObjectId string
-                      if (typeof selectedLead.subAgent === 'string') {
-                        const subAgentName = getSubAgentName(selectedLead.subAgent);
-                        if (subAgentName !== 'N/A') {
-                          return subAgentName;
-                        }
-                      }
-                    }
-                    
-                    // Final fallback
-                    return 'N/A';
-                  })()}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Associated</label>
-                <p className="mt-1 text-sm text-gray-900">{getAssociatedName(selectedLead)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Bank</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {selectedLead.bank?.name || getBankName(selectedLead.bankId || selectedLead.bank) || 'N/A'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Customer Name</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.customerName || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Disbursement Date</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {selectedLead.disbursementDate ? new Date(selectedLead.disbursementDate).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">SM/BM Name</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {(() => {
-                    if (selectedLead.smBm && typeof selectedLead.smBm === 'object' && selectedLead.smBm.name) {
-                      return selectedLead.smBm.name
-                    }
-                    const smBmId = selectedLead.smBmId || (selectedLead.smBm && (selectedLead.smBm._id || selectedLead.smBm.id)) || selectedLead.smBm
-                    return getStaffName(smBmId)
-                  })()}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">SM/BM Email</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.smBmEmail || selectedLead.smBm?.email || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">SM/BM Mobile</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.smBmMobile || selectedLead.smBm?.mobile || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">ASM Name</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.asmName || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">ASM Email</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.asmEmail || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">ASM Mobile</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.asmMobile || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">DSA Code</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.dsaCode || selectedLead.codeUse || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Branch</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedLead.branch || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Created Date</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {selectedLead.createdAt ? new Date(selectedLead.createdAt).toLocaleDateString() : selectedLead.created_at ? new Date(selectedLead.created_at).toLocaleDateString() : 'N/A'}
-                </p>
+                      return 'N/A';
+                    })()}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Associated</label>
+                  <p className="mt-1 text-sm text-gray-900">{getAssociatedName(selectedLead)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">ASM Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.asmName || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">ASM Email</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.asmEmail || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">ASM Mobile</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.asmMobile || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">DSA Code</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedLead.dsaCode || selectedLead.codeUse || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Created Date</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedLead.createdAt ? new Date(selectedLead.createdAt).toLocaleDateString() : selectedLead.created_at ? new Date(selectedLead.created_at).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
               </div>
             </div>
 

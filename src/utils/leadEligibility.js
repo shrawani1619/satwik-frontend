@@ -96,7 +96,7 @@ export function formatEligibleRupee(n) {
 
 function buildCalculationBreakdown(formLike, calc) {
   const missing = []
-  const gross = parseNum(formLike.grossIncome) || parseNum(formLike.salary)
+  const gross = parseNum(formLike.grossIncome)
   if (!gross) missing.push('gross income')
   if (!parseNum(formLike.foir)) missing.push('FOIR (%)')
   if (!Number.isFinite(parseNum(formLike.currentEmi))) missing.push('current EMI')
