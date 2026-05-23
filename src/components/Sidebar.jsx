@@ -23,6 +23,7 @@ import {
   Wallet,
   X,
   BookUser,
+  FileCheck,
 } from 'lucide-react'
 
 const Sidebar = ({ onMinimizeChange, isMobile = false, isOpen = false, onClose }) => {
@@ -61,6 +62,7 @@ const Sidebar = ({ onMinimizeChange, isMobile = false, isOpen = false, onClose }
     { icon: Store, label: 'Franchises', path: '/franchises', roles: ['super_admin'] },
     { icon: Users, label: 'Leads', path: '/leads', roles: ['super_admin', 'regional_manager', 'franchise', 'accounts_manager'] },
     { icon: Building2, label: 'Banks', path: '/banks', roles: ['super_admin', 'regional_manager'] },
+    { icon: FileCheck, label: 'Bank Docs', path: '/bank-docs', roles: ['super_admin', 'regional_manager'] },
     { icon: UserCheck, label: 'Accountant Managers', path: '/accountant-managers', roles: ['super_admin'] },
     { icon: FileText, label: 'Invoices', path: '/invoices', roles: ['super_admin', 'regional_manager', 'franchise', 'accounts_manager'] },
     { icon: Wallet, label: 'Payouts', path: '/payouts', roles: ['super_admin', 'accounts_manager'] },

@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard'
 import Leads from './pages/Leads'
 import Staff from './pages/Staff'
 import Banks from './pages/Banks'
+import BankDocs from './pages/BankDocs'
 import Franchises from './pages/Franchises'
 import Invoices from './pages/Invoices'
 import Settings from './pages/Settings'
@@ -60,6 +61,7 @@ function App() {
           <Route path="leads" element={<Leads />} />
           <Route path="staff" element={<Staff />} />
           <Route path="banks" element={<Banks />} />
+          <Route path="bank-docs" element={<BankDocs />} />
           <Route path="franchises" element={<Franchises />} />
           <Route path="regional-managers" element={<RegionalManagers />} />
           <Route path="accountant-managers" element={<AccountantManagers />} />

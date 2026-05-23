@@ -584,6 +584,21 @@ export const api = {
     },
   },
 
+  // Bank Docs (document checklists) endpoints
+  bankDocs: {
+    getAll: () => apiRequest('/bank-docs'),
+    getById: (id) => apiRequest(`/bank-docs/${id}`),
+    create: (data) => apiRequest('/bank-docs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    update: (id, data) => apiRequest(`/bank-docs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+    delete: (id) => apiRequest(`/bank-docs/${id}`, { method: 'DELETE' }),
+  },
+
   // Banks endpoints
   banks: {
     getAll: (params = {}) => {

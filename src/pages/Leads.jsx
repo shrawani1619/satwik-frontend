@@ -18,6 +18,18 @@ import { getLeadLoanAmount, validateSanctionAmount } from '../utils/sanctionAmou
 
 const SANCTION_STATUS = 'sanctioned_branch_appointment_fixed'
 
+/** Row status dropdown — Logged always listed. */
+const LEAD_STATUS_CHANGE_OPTIONS = [
+  { value: 'inquiry', label: 'Inquiry' },
+  { value: 'logged', label: 'Logged' },
+  { value: 'legal_valuation_property_done', label: 'Legal Valuation / Property Done' },
+  { value: 'sanctioned_branch_appointment_fixed', label: 'Sanction and branch appointment are fixed' },
+  { value: 'partial_disbursed', label: 'Partial Disbursed' },
+  { value: 'disbursed', label: 'Disbursed' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'rejected', label: 'Rejected' },
+]
+
 const DEFAULT_LEAD_COLUMNS = [
   { key: 'customerName', label: 'Customer Name', visible: true, sortable: true },
   { key: 'loanType', label: 'Loan Type', visible: true, sortable: true },
@@ -858,7 +870,7 @@ const Leads = () => {
         applicantEmail: formData.applicantEmail?.trim() || undefined,
         loanType: formData.loanType,
         loanAmount: formData.loanAmount ? parseFloat(formData.loanAmount) : undefined,
-        status: formData.status || 'logged',
+        status: formData.status || 'inquiry',
         agent: formData.agentId || formData.agent || undefined,
         // Support both shapes: payload may include `associated` or `associatedId`
         associated: formData.associated || formData.associatedId || formData.franchiseId || undefined,
@@ -961,7 +973,7 @@ const Leads = () => {
 
   const handleStatusSelectChange = (lead, newStatus) => {
     const leadId = lead?.id || lead?._id
-    const prevStatus = lead?.status || 'logged'
+    const prevStatus = lead?.status || 'inquiry'
     if (newStatus === prevStatus) {
       console.warn('[Leads] Status unchanged — no API call', { leadId, status: prevStatus })
       toast.info('No change', 'Lead is already in this status.')
@@ -1909,7 +1921,7 @@ const Leads = () => {
                         const remaining = Math.max(0, loanAmount - disbursed);
                         return <div className="text-sm font-medium text-gray-900">{formatIndianRupee(remaining)}</div>
                       case 'status':
-                        return <StatusBadge status={lead.status || 'logged'} />
+                        return <StatusBadge status={lead.status || 'inquiry'} />
                       case 'associated': {
                         const associatedName = getAssociatedName(lead)
                         const associatedObj = lead.associated
@@ -2361,30 +2373,25 @@ const Leads = () => {
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                                 <select
-                                  value={lead.status || 'logged'}
+                                  value={lead.status || 'inquiry'}
                                   onChange={(e) => {
                                     const next = e.target.value
                                     handleStatusSelectChange(lead, next)
                                     if (
                                       next === SANCTION_STATUS &&
-                                      (lead.status || 'logged') !== SANCTION_STATUS
+                                      (lead.status || 'inquiry') !== SANCTION_STATUS
                                     ) {
-                                      e.target.value = lead.status || 'logged'
+                                      e.target.value = lead.status || 'inquiry'
                                     }
                                   }}
                                   className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  {(lead.status || 'logged') === 'logged' && (
-                                    <option value="logged">Logged</option>
-                                  )}
-                                  <option value="inquiry">Inquiry</option>
-                                  <option value="legal_valuation_property_done">Legal Valuation / Property Done</option>
-                                  <option value="sanctioned_branch_appointment_fixed">Sanction and branch appointment are fixed</option>
-                                  <option value="partial_disbursed">Partial Disbursed</option>
-                                  <option value="disbursed">Disbursed</option>
-                                  <option value="completed">Completed</option>
-                                  <option value="rejected">Rejected</option>
+                                  {LEAD_STATUS_CHANGE_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>
+                                      {o.label}
+                                    </option>
+                                  ))}
                                 </select>
                               </>
                             )}
@@ -2481,7 +2488,7 @@ const Leads = () => {
                 case 'disbursedAmount':
                   return formatIndianRupee(lead.disbursedAmount || 0)
                 case 'status':
-                  return lead.status || 'logged'
+                  return lead.status || 'inquiry'
                 case 'bank':
                   return lead.bank?.name || getBankName(lead.bankId || lead.bank) || 'N/A'
                 case 'loanAccountNo':
@@ -2528,7 +2535,7 @@ const Leads = () => {
                       </p>
                     </div>
                     <div className="flex-shrink-0">
-                      <StatusBadge status={lead.status || 'logged'} />
+                      <StatusBadge status={lead.status || 'inquiry'} />
                     </div>
                   </div>
                 </div>
@@ -2800,7 +2807,7 @@ const Leads = () => {
                 <div>
                   <label className="text-sm font-medium text-gray-500">Status</label>
                   <div className="mt-1">
-                    <StatusBadge status={selectedLead.status || 'logged'} />
+                    <StatusBadge status={selectedLead.status || 'inquiry'} />
                   </div>
                 </div>
                 <div>

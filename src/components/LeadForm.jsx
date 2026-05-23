@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { toast } from '../services/toastService'
 import api from '../services/api'
 import { authService } from '../services/auth.service'
@@ -9,7 +9,11 @@ import {
   pickLeadField,
   validateLeadIncomeFields,
   serializeLeadIncomeFields,
+  computeLoanEmiFromForm,
+  computeProcessingFeeFromForm,
+  formatEmiDisplay,
 } from '../utils/leadIncomeFields'
+import { PROCESSING_FEE_MOD_RATE_PERCENT } from '../utils/processingFeeCalculations'
 import {
   getBankTenureMonths,
   LEAD_MIN_TENURE_MONTHS,
@@ -73,7 +77,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     agent: currentUserId,
     subAgent: '',
     leadType: 'new_lead',
-    status: 'logged',
+    status: 'inquiry',
     
     // Additional Fields
     advancePayment: false,
@@ -88,6 +92,16 @@ const LeadForm = ({ onClose, onSave, lead }) => {
   const [loading, setLoading] = useState(false)
   const [fetchError, setFetchError] = useState(null)
   const [errors, setErrors] = useState({})
+
+  const computedEmiAmount = useMemo(
+    () => computeLoanEmiFromForm(formData),
+    [formData.loanAmount, formData.rateOfInterest, formData.tenureMonths, formData.loanType]
+  )
+
+  const computedProcessingFee = useMemo(
+    () => computeProcessingFeeFromForm(formData),
+    [formData.loanAmount]
+  )
 
   useEffect(() => {
     const fetchData = async () => {
@@ -729,6 +743,22 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Amount of EMI
+                </label>
+                <input
+                  type="text"
+                  name="emiAmountDisplay"
+                  readOnly
+                  value={formatEmiDisplay(computedEmiAmount)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 cursor-default"
+                  placeholder="Enter loan amount, rate & tenure"
+                  tabIndex={-1}
+                  aria-readonly="true"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Branch
                 </label>
                 <input
@@ -902,6 +932,26 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                 {errors.rateOfInterest && (
                   <p className="mt-1 text-xs text-red-600">{errors.rateOfInterest}</p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Processing fee (₹)
+                </label>
+                <input
+                  type="text"
+                  name="processingFeeDisplay"
+                  readOnly
+                  value={formatEmiDisplay(computedProcessingFee)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 cursor-default"
+                  placeholder="Enter loan amount"
+                  tabIndex={-1}
+                  aria-readonly="true"
+                />
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Auto: MOD ({PROCESSING_FEE_MOD_RATE_PERCENT}% of loan) + NOI ₹15,000 + Legal &amp; Technical ₹4,130
+                  + Stamp paper ₹6,320 + Advocate ₹2,000.
+                </p>
               </div>
             </div>
 

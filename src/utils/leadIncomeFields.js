@@ -2,7 +2,10 @@ import {
   LEAD_MIN_TENURE_MONTHS,
   LEAD_MAX_TENURE_MONTHS,
   parseTenureMonths,
+  getLeadTenureMonths,
 } from './loanTenure'
+import { calculateEmi } from './loanEligibilityCalculations'
+import { computeProcessingFeeFromLoanAmount } from './processingFeeCalculations'
 
 export const LEAD_MIN_AGE = 21
 export const LEAD_MAX_AGE = 75
@@ -39,6 +42,29 @@ export function getEffectiveInterestRate(formLike) {
   const rate = parseMoney(formLike.rateOfInterest)
   if (Number.isFinite(rate) && rate > 0) return rate
   return null
+}
+
+/** New-loan EMI from amount, rate (% p.a.), and tenure (months). Recalculates when tenure changes. */
+export function computeLoanEmiFromForm(formLike) {
+  const principal = parseMoney(formLike.loanAmount)
+  const rate = parseMoney(formLike.rateOfInterest)
+  const tenureMonths = getLeadTenureMonths(formLike)
+  if (!Number.isFinite(principal) || principal <= 0) return null
+  if (!Number.isFinite(tenureMonths) || tenureMonths <= 0) return null
+  if (!Number.isFinite(rate) || rate < 0) return null
+  const emi = calculateEmi(principal, rate, tenureMonths)
+  if (!Number.isFinite(emi) || emi <= 0) return null
+  return Math.round(emi * 100) / 100
+}
+
+export function formatEmiDisplay(emi) {
+  if (emi == null || !Number.isFinite(emi)) return ''
+  return `₹${Math.round(emi).toLocaleString('en-IN')}`
+}
+
+/** Tentative charges total from loan amount (MOD 0.3% + fixed fees). */
+export function computeProcessingFeeFromForm(formLike) {
+  return computeProcessingFeeFromLoanAmount(formLike?.loanAmount)
 }
 
 /**
@@ -99,6 +125,8 @@ export function validateLeadIncomeFields(formLike) {
 
 export function serializeLeadIncomeFields(formData) {
   const net = computeNetMonthlyIncome(formData)
+  const emiAmount = computeLoanEmiFromForm(formData)
+  const processingFee = computeProcessingFeeFromForm(formData)
   return {
     foir: parseMoney(formData.foir),
     grossIncome: parseMoney(formData.grossIncome),
@@ -108,5 +136,7 @@ export function serializeLeadIncomeFields(formData) {
     monthlyIncome: Number.isFinite(net) && net > 0 ? net : undefined,
     applicantAge: parseInt(String(formData.applicantAge).trim(), 10),
     tenureMonths: parseTenureMonths(formData.tenureMonths),
+    ...(emiAmount != null ? { emiAmount } : {}),
+    ...(processingFee != null ? { processingFee } : {}),
   }
 }
