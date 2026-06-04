@@ -9,6 +9,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import { toast } from '../services/toastService'
 import { exportToExcel } from '../utils/exportExcel'
 import { authService } from '../services/auth.service'
+import LoanTypeBadges from '../components/LoanTypeBadges'
 
 const Banks = () => {
   const userRole = authService.getUser()?.role || ''
@@ -448,7 +449,7 @@ const Banks = () => {
                     {getSortIcon('type')}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="min-w-[240px] max-w-sm px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Loan Types
                 </th>
                 <th
@@ -518,16 +519,8 @@ const Banks = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-mono text-gray-900">{bank.type || bank.code || 'N/A'}</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {bank.loanTypes && bank.loanTypes.length > 0 ? bank.loanTypes.map((lt) => (
-                            <span key={lt} className="inline-block px-2 py-0.5 text-xs font-medium bg-primary-50 text-primary-800 rounded-full border border-primary-200">
-                              {lt.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                            </span>
-                          )) : (
-                            <span className="text-sm text-gray-400">N/A</span>
-                          )}
-                        </div>
+                      <td className="min-w-[240px] max-w-sm px-6 py-4 align-top">
+                        <LoanTypeBadges loanTypes={bank.loanTypes} maxVisible={3} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{loanStats.total}</div>
@@ -642,14 +635,13 @@ const Banks = () => {
             {/* Loan Types */}
             <div>
               <label className="text-sm font-medium text-gray-500">Loan Types</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedBank.loanTypes && selectedBank.loanTypes.length > 0 ? selectedBank.loanTypes.map((lt) => (
-                  <span key={lt} className="inline-block px-3 py-1 text-sm font-medium bg-primary-50 text-primary-800 rounded-full border border-primary-200">
-                    {lt.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                  </span>
-                )) : (
-                  <span className="text-sm text-gray-400">No loan types assigned</span>
-                )}
+              <div className="mt-2">
+                <LoanTypeBadges
+                  loanTypes={selectedBank.loanTypes}
+                  maxVisible={-1}
+                  size="md"
+                  emptyLabel="No loan types assigned"
+                />
               </div>
             </div>
 

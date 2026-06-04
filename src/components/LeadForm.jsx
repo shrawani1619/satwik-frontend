@@ -10,10 +10,8 @@ import {
   validateLeadIncomeFields,
   serializeLeadIncomeFields,
   computeLoanEmiFromForm,
-  computeProcessingFeeFromForm,
   formatEmiDisplay,
 } from '../utils/leadIncomeFields'
-import { PROCESSING_FEE_MOD_RATE_PERCENT } from '../utils/processingFeeCalculations'
 import {
   getBankTenureMonths,
   LEAD_MIN_TENURE_MONTHS,
@@ -64,6 +62,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     currentEmi: '',
     rateOfInterest: '',
     tenureMonths: '',
+    processingFee: '',
     
     // SM/BM & ASM (matches backend lead.controller / lead.model)
     smBmName: '',
@@ -96,11 +95,6 @@ const LeadForm = ({ onClose, onSave, lead }) => {
   const computedEmiAmount = useMemo(
     () => computeLoanEmiFromForm(formData),
     [formData.loanAmount, formData.rateOfInterest, formData.tenureMonths, formData.loanType]
-  )
-
-  const computedProcessingFee = useMemo(
-    () => computeProcessingFeeFromForm(formData),
-    [formData.loanAmount]
   )
 
   useEffect(() => {
@@ -178,6 +172,9 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       ),
       tenureMonths: String(
         pickLeadField(lead, 'tenureMonths', ['tenure', 'loanTenure', 'tenure_in_months']) || ''
+      ),
+      processingFee: String(
+        pickLeadField(lead, 'processingFee', ['processing_fee', 'processingFeeAmount', 'pfAmount']) || ''
       ),
 
       // Bank/assignment
@@ -288,6 +285,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
       'currentEmi',
       'foir',
       'rateOfInterest',
+      'processingFee',
     ]
     if (moneyFields.includes(name)) {
       newValue = value.replace(/[^0-9.]/g, '')
@@ -940,18 +938,18 @@ const LeadForm = ({ onClose, onSave, lead }) => {
                 </label>
                 <input
                   type="text"
-                  name="processingFeeDisplay"
-                  readOnly
-                  value={formatEmiDisplay(computedProcessingFee)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 cursor-default"
-                  placeholder="Enter loan amount"
-                  tabIndex={-1}
-                  aria-readonly="true"
+                  inputMode="decimal"
+                  name="processingFee"
+                  value={formData.processingFee}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.processingFee ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="e.g. 27500"
                 />
-                <p className="mt-0.5 text-xs text-gray-500">
-                  Auto: MOD ({PROCESSING_FEE_MOD_RATE_PERCENT}% of loan) + NOI ₹15,000 + Legal &amp; Technical ₹4,130
-                  + Stamp paper ₹6,320 + Advocate ₹2,000.
-                </p>
+                {errors.processingFee && (
+                  <p className="mt-1 text-xs text-red-600">{errors.processingFee}</p>
+                )}
               </div>
             </div>
 

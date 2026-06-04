@@ -5,7 +5,6 @@ import {
   getLeadTenureMonths,
 } from './loanTenure'
 import { calculateEmi } from './loanEligibilityCalculations'
-import { computeProcessingFeeFromLoanAmount } from './processingFeeCalculations'
 
 export const LEAD_MIN_AGE = 21
 export const LEAD_MAX_AGE = 75
@@ -62,11 +61,6 @@ export function formatEmiDisplay(emi) {
   return `₹${Math.round(emi).toLocaleString('en-IN')}`
 }
 
-/** Tentative charges total from loan amount (MOD 0.3% + fixed fees). */
-export function computeProcessingFeeFromForm(formLike) {
-  return computeProcessingFeeFromLoanAmount(formLike?.loanAmount)
-}
-
 /**
  * @returns {{ ok: boolean, errors: Record<string, string> }}
  */
@@ -120,13 +114,24 @@ export function validateLeadIncomeFields(formLike) {
     errors.deduction = 'Applicant deduction cannot exceed gross income'
   }
 
+  if (formLike.processingFee !== '' && formLike.processingFee != null) {
+    const pf = parseMoney(formLike.processingFee)
+    if (!Number.isFinite(pf) || pf < 0) {
+      errors.processingFee = 'Enter a valid processing fee amount'
+    }
+  }
+
   return { ok: Object.keys(errors).length === 0, errors }
 }
 
 export function serializeLeadIncomeFields(formData) {
   const net = computeNetMonthlyIncome(formData)
   const emiAmount = computeLoanEmiFromForm(formData)
-  const processingFee = computeProcessingFeeFromForm(formData)
+  const processingFeeRaw = formData.processingFee
+  const processingFee =
+    processingFeeRaw !== '' && processingFeeRaw != null
+      ? parseMoney(processingFeeRaw)
+      : null
   return {
     foir: parseMoney(formData.foir),
     grossIncome: parseMoney(formData.grossIncome),
@@ -137,6 +142,6 @@ export function serializeLeadIncomeFields(formData) {
     applicantAge: parseInt(String(formData.applicantAge).trim(), 10),
     tenureMonths: parseTenureMonths(formData.tenureMonths),
     ...(emiAmount != null ? { emiAmount } : {}),
-    ...(processingFee != null ? { processingFee } : {}),
+    ...(Number.isFinite(processingFee) && processingFee >= 0 ? { processingFee } : {}),
   }
 }
