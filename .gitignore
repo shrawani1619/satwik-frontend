@@ -1,5 +1,13 @@
+# Dependencies
+node_modules/
+
+# Environment & secrets (never commit)
+.env
+.env.*
+!.env.example
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,21 +15,48 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Build output
+dist/
+dist-ssr/
+build/
 *.local
 
-# Editor directories and files
+# Vite
+.vite/
+
+# Test & coverage
+coverage/
+.nyc_output/
+
+# Deployment
+.vercel/
+.netlify/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE & editors
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+!.vscode/settings.json.example
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*~
 
-.env
+# Cursor
+.cursor/
 
+# Misc
+.eslintcache
+*.tsbuildinfo
+.turbo/
+.tmp/
+temp/
+tmp/
