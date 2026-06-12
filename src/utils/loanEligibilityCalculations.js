@@ -2,7 +2,7 @@ import { parseMoney, getEffectiveInterestRate } from './leadIncomeFields'
 import { parseTenureMonths } from './loanTenure'
 
 /** Max age at loan maturity (home-loan style eligibility). */
-export const MAX_AGE_AT_LOAN_END = 70
+export const MAX_AGE_AT_LOAN_END = 75
 
 /** Max tenure months for eligibility (30 years). */
 export const MAX_TENURE_MONTHS_ELIGIBILITY = 360
