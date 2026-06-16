@@ -1,25 +1,32 @@
-name: Deploy Backend
+name: Deploy Frontend
 
 on:
-  push:
-    branches:
-      - main
+push:
+branches:
+- main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+deploy:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Deploy Backend
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-  host: ${{ secrets.VPS_HOST }}
-  username: ${{ secrets.VPS_USER }}
-  key: ${{ secrets.VPS_SSH_KEY }}
+```
+steps:
+  - name: Deploy Frontend
+    uses: appleboy/ssh-action@v1.2.0
+    with:
+      host: ${{ secrets.VPS_HOST }}
+      username: ${{ secrets.VPS_USER }}
+      key: ${{ secrets.VPS_SSH_KEY }}
 
-          script: |
-            cd /var/www/satwik-backend
-            git pull origin main
-            npm install
-            pm2 restart satwik-backend --update-env
-            pm2 save
+      script: |
+        cd /var/www/satwik-frontend
+
+        git pull origin main
+
+        npm install
+
+        NODE_OPTIONS="--max-old-space-size=1024" npm run build
+
+        sudo nginx -t
+        sudo systemctl reload nginx
+```
