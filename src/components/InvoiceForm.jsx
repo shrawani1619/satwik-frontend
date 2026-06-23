@@ -4,17 +4,12 @@ import api from '../services/api'
 import API_BASE_URL from '../config/api'
 import { toast } from '../services/toastService'
 
-/** Resolve franchise id like backend: associated Franchise or agent.managedBy franchise */
+/** Resolve franchise id from lead.associated (Franchise) only */
 function getLeadFranchiseId(lead) {
   if (!lead) return null
   const ass = lead.associated
   if (lead.associatedModel === 'Franchise' && ass) {
     return typeof ass === 'object' ? (ass._id || ass.id || ass) : ass
-  }
-  const agent = lead.agent
-  if (typeof agent === 'object' && agent?.managedByModel === 'Franchise' && agent?.managedBy) {
-    const mb = agent.managedBy
-    return typeof mb === 'object' ? (mb._id || mb.id || mb) : mb
   }
   return lead.franchise?._id || lead.franchise?.id || lead.franchise || lead.franchiseId || null
 }
@@ -206,7 +201,7 @@ const InvoiceForm = ({ invoice, onSave, onClose, leads = [] }) => {
     } else if (leadToValidate && !invoice) {
       const franchiseId = getLeadFranchiseId(leadToValidate)
       if (!franchiseId) {
-        newErrors.leadId = 'Selected lead must be linked to a franchise (associate franchise or agent under a franchise)'
+        newErrors.leadId = 'Selected lead must be linked to a franchise (associate franchise on the lead)'
       }
     }
 
@@ -314,9 +309,12 @@ const InvoiceForm = ({ invoice, onSave, onClose, leads = [] }) => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Partner</p>
+                  <p className="text-xs text-gray-500 mb-1">Created By</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {selectedLead?.agent?.name || invoice.lead?.agent?.name || invoice.agent?.name || 'N/A'}
+                    {selectedLead?.createdByResolved?.name ||
+                      selectedLead?.createdBy?.name ||
+                      invoice.createdBy?.name ||
+                      'N/A'}
                   </p>
                 </div>
                 <div>

@@ -290,7 +290,7 @@ const DisbursementForm = ({
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
                                     <DollarSign size={14} className="text-gray-500" />
-                                    Disbursement Amount *
+                                    Disbursement Amount <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="number"
@@ -317,7 +317,7 @@ const DisbursementForm = ({
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
                                     <Calendar size={14} className="text-gray-500" />
-                                    Disbursement Date *
+                                    Disbursement Date <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="date"
@@ -346,7 +346,7 @@ const DisbursementForm = ({
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
                                     <Hash size={14} className="text-gray-500" />
-                                    UTR Number *
+                                    UTR Number <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -396,7 +396,7 @@ const DisbursementForm = ({
                             
                             {/* Commission Type Selection */}
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-2">Commission Type *</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-2">Commission Type <span className="text-red-500">*</span></label>
                                 <div className="flex gap-3">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -427,7 +427,7 @@ const DisbursementForm = ({
                                 {formData.commissionType === 'amt' ? (
                                     <div>
                                         <label className="block text-xs font-bold text-gray-700 mb-2">
-                                            Commission Amount (₹) *
+                                            Commission Amount (₹) <span className="text-red-500">*</span>
                                             {commissionPercentage > 0 && (
                                                 <span className="text-blue-600 ml-1 text-xs font-normal">
                                                     (suggested: {commissionPercentage}% of amount)
@@ -460,7 +460,7 @@ const DisbursementForm = ({
                                 ) : (
                                     <div>
                                         <label className="block text-xs font-bold text-gray-700 mb-2">
-                                            Commission Percentage (%) *
+                                            Commission Percentage (%) <span className="text-red-500">*</span>
                                         </label>
                                         <input
                                             type="number"

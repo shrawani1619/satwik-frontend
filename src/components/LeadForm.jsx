@@ -73,8 +73,6 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     asmMobile: '',
     
     // Assignment
-    agent: currentUserId,
-    subAgent: '',
     leadType: 'new_lead',
     status: 'inquiry',
     
@@ -85,7 +83,7 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     remarks: '',
   })
 
-  const [agents, setAgents] = useState([])
+
   const [banks, setBanks] = useState([])
   const [franchises, setFranchises] = useState([])
   const [loading, setLoading] = useState(false)
@@ -128,10 +126,6 @@ const LeadForm = ({ onClose, onSave, lead }) => {
     const bankValue = typeof lead.bank === 'object' && lead.bank
       ? (lead.bank._id || lead.bank.id || '')
       : (lead.bank || '')
-
-    const agentValue = typeof lead.agent === 'object' && lead.agent
-      ? (lead.agent._id || lead.agent.id || '')
-      : (lead.agent || currentUserId)
 
     setFormData((prev) => ({
       ...prev,
@@ -179,7 +173,6 @@ const LeadForm = ({ onClose, onSave, lead }) => {
 
       // Bank/assignment
       bank: bankValue,
-      agent: agentValue,
 
       // Additional
       advancePayment: !!lead.advancePayment,

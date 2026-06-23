@@ -287,7 +287,7 @@ const DisbursementEmailModal = ({ isOpen, onClose, leadId }) => {
               {/* Email Fields */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">TO:</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">TO: <span className="text-red-500">*</span></label>
                   {isEditing ? (
                     <div>
                       <input
@@ -374,7 +374,7 @@ const DisbursementEmailModal = ({ isOpen, onClose, leadId }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SUBJECT:</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">SUBJECT: <span className="text-red-500">*</span></label>
                   {isEditing ? (
                     <div>
                       <input

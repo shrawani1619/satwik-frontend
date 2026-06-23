@@ -16,7 +16,6 @@ const Settings = () => {
     franchise: null,
     managedBy: null,
     managedByModel: null,
-    agentType: null,
     commissionPercentage: null,
     kyc: {},
     bankDetails: {},
@@ -56,7 +55,6 @@ const Settings = () => {
             franchise: userData.franchise ?? null,
             managedBy: userData.managedBy ?? null,
             managedByModel: userData.managedByModel ?? null,
-            agentType: userData.agentType ?? null,
             commissionPercentage: userData.commissionPercentage ?? null,
             kyc: userData.kyc || {},
             bankDetails: userData.bankDetails || {},
@@ -340,7 +338,7 @@ const Settings = () => {
             </div>
           )}
 
-          {(user.role === 'agent' || user.role === 'franchise') && (
+          {user.role === 'franchise' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Franchise</label>
               <p className="text-sm text-gray-900 py-2">
@@ -348,55 +346,6 @@ const Settings = () => {
                   ? (typeof user.franchise === 'object' && user.franchise?.name ? user.franchise.name : String(user.franchise))
                   : '—'}
               </p>
-            </div>
-          )}
-
-          {/* Mapped franchise account details */}
-          {user.role === 'agent' && user.managedBy && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mapped Franchise
-                </label>
-                <p className="text-sm text-gray-900 py-2 font-medium">
-                  {typeof user.managedBy === 'object' && user.managedBy?.name
-                    ? user.managedBy.name
-                    : '—'}
-                </p>
-              </div>
-              {typeof user.managedBy === 'object' && user.managedBy?.email && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Franchise Email
-                  </label>
-                  <p className="text-sm text-gray-900 py-2">{user.managedBy.email}</p>
-                </div>
-              )}
-              {typeof user.managedBy === 'object' && user.managedBy?.phone && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Franchise Phone
-                  </label>
-                  <p className="text-sm text-gray-900 py-2">{user.managedBy.phone}</p>
-                </div>
-              )}
-              {user.agentType && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Partner Type</label>
-                  <p className="text-sm py-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.agentType === 'GST' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'}`}>
-                      {user.agentType === 'GST' ? 'GST' : 'Normal'}
-                    </span>
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-
-          {user.role === 'agent' && user.commissionPercentage != null && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Commission %</label>
-              <p className="text-sm text-gray-900 py-2">{user.commissionPercentage}%</p>
             </div>
           )}
 

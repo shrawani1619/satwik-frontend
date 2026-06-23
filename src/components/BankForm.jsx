@@ -4,6 +4,7 @@ import {
   DEFAULT_TENURE_MONTHS_BY_LOAN_TYPE,
   LEAD_MIN_TENURE_MONTHS,
   LEAD_MAX_TENURE_MONTHS,
+  buildLoanTenureMonthsFromBank,
 } from '../utils/loanTenure'
 
 const BankForm = ({ bank, onSave, onClose }) => {
@@ -20,10 +21,11 @@ const BankForm = ({ bank, onSave, onClose }) => {
 
   useEffect(() => {
     if (bank) {
+      const loanTypes = bank.loanTypes || []
       setFormData({
         name: bank.name || '',
-        loanTypes: bank.loanTypes || [],
-        loanTenureMonths: bank.loanTenureMonths || {},
+        loanTypes,
+        loanTenureMonths: buildLoanTenureMonthsFromBank(loanTypes, bank.loanTenureMonths),
         type: bank.type || 'bank',
         status: bank.status || 'active',
         disbursementThresholdPercentage:

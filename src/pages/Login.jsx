@@ -24,7 +24,6 @@ const Login = () => {
 
   const getDashboardRoute = (role) => {
     const roleRoutes = {
-      'agent': '/',
       'regional_manager': '/',
       'franchise': '/',
       'accounts_manager': '/',
@@ -105,7 +104,7 @@ const Login = () => {
             <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address
+                  Email Address <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -129,7 +128,7 @@ const Login = () => {
 
               <div>
                 <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password
+                  Password <span className="text-red-500">*</span>
                 </label>
                 <PasswordField
                   id="password"

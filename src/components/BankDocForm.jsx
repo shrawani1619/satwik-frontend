@@ -140,7 +140,7 @@ const BankDocForm = ({ bankDoc, banks = [], onSave, onClose, saving = false }) =
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">Checklist Section</h3>
+          <h3 className="text-sm font-semibold text-gray-900">Checklist Section <span className="text-red-500">*</span></h3>
           <button
             type="button"
             onClick={addChecklistItem}

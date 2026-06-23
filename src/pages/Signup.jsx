@@ -69,7 +69,7 @@ const Signup = () => {
     }
 
     // Validate franchise selection for roles that require it
-    const rolesRequiringFranchise = ['agent', 'franchise']
+    const rolesRequiringFranchise = ['franchise']
     if (rolesRequiringFranchise.includes(formData.role) && !formData.franchiseId) {
       setError('Please select a franchise')
       return
@@ -153,7 +153,7 @@ const Signup = () => {
             <div className="space-y-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Full Name
+                  Full Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="name"
@@ -168,7 +168,7 @@ const Signup = () => {
               </div>
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address
+                  Email Address <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="email"
@@ -184,7 +184,7 @@ const Signup = () => {
               </div>
               <div>
                 <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number
+                  Phone Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="phone"
@@ -210,19 +210,18 @@ const Signup = () => {
                   className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-gray-900 bg-white"
                 >
                   <option value="">Select a role</option>
-                  <option value="agent">Partner</option>
                   <option value="franchise">Franchise Owner</option>
                   <option value="accounts_manager">Accounts Manager</option>
                 </select>
               </div>
               <div>
                 <label htmlFor="franchiseId" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Franchise {(formData.role === 'agent' || formData.role === 'franchise') && <span className="text-red-500">*</span>}
+                  Franchise {formData.role === 'franchise' && <span className="text-red-500">*</span>}
                 </label>
                 <select
                   id="franchiseId"
                   name="franchiseId"
-                  required={formData.role === 'agent' || formData.role === 'franchise'}
+                  required={formData.role === 'franchise'}
                   value={formData.franchiseId}
                   onChange={handleChange}
                   className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-gray-900 bg-white"
@@ -237,7 +236,7 @@ const Signup = () => {
               </div>
               <div>
                 <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password
+                  Password <span className="text-red-500">*</span>
                 </label>
                 <PasswordField
                   id="password"

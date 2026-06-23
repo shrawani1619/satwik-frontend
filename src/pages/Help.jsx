@@ -18,8 +18,8 @@ const Help = () => {
     },
     {
       id: 3,
-      question: 'How do I assign an agent to a lead?',
-      answer: 'When creating or editing a lead, you can select an agent from the "Agent" dropdown field. Make sure the agent is active in the Agents Management section before assigning.',
+      question: 'How are leads assigned?',
+      answer: 'Leads are created by franchise users and linked to an associated franchise. The creator is recorded automatically when a lead is submitted.',
     },
     {
       id: 4,
@@ -120,7 +120,7 @@ const Help = () => {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900">Email Support</p>
-              <p className="text-xs text-gray-600">support@ykc.com</p>
+              <p className="text-xs text-gray-600">support@satwik.com</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

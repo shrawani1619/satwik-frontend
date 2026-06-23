@@ -25,6 +25,33 @@ export function getDefaultTenureForLoanType(loanType) {
   return DEFAULT_TENURE_MONTHS_BY_LOAN_TYPE[loanType] ?? 120
 }
 
+/** Flatten loanTenureMonths from API (plain object or Map) into string-keyed values. */
+export function parseBankLoanTenureMonths(raw) {
+  if (!raw) return {}
+  if (raw instanceof Map) {
+    return Object.fromEntries(raw.entries())
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return { ...raw }
+  }
+  return {}
+}
+
+/** Build form tenure map: saved values first, then defaults per selected loan type. */
+export function buildLoanTenureMonthsFromBank(loanTypes = [], rawTenures = {}) {
+  const saved = parseBankLoanTenureMonths(rawTenures)
+  const result = {}
+  for (const lt of loanTypes) {
+    const n = Number(saved[lt])
+    if (Number.isFinite(n) && n > 0) {
+      result[lt] = Math.round(n)
+    } else {
+      result[lt] = getDefaultTenureForLoanType(lt) ?? 120
+    }
+  }
+  return result
+}
+
 export function getBankTenureMonths(banks, bankId, loanType) {
   if (!bankId || !loanType || !Array.isArray(banks)) return null
   const bank = banks.find((b) => String(b._id || b.id) === String(bankId))

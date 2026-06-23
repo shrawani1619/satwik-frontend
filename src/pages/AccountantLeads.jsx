@@ -103,7 +103,7 @@ const AccountantLeads = () => {
     const [filters, setFilters] = useState({
         status: '',
         bank: '',
-        agent: '',
+        createdBy: '',
         dateRange: { from: '', to: '' }
     });
     const [filtersOpen, setFiltersOpen] = useState(false);
@@ -487,7 +487,8 @@ const AccountantLeads = () => {
                 (lead.customerName && lead.customerName.toLowerCase().includes(term)) ||
                 (lead.leadId && lead.leadId.toLowerCase().includes(term)) ||
                 (lead.loanAccountNo && lead.loanAccountNo.toLowerCase().includes(term)) ||
-                (lead.agentName && lead.agentName.toLowerCase().includes(term))
+                (lead.createdBy?.name && lead.createdBy.name.toLowerCase().includes(term)) ||
+                (lead.createdByName && lead.createdByName.toLowerCase().includes(term))
             );
         }
         
@@ -504,11 +505,10 @@ const AccountantLeads = () => {
             );
         }
         
-        // Apply agent filter
-        if (filters.agent) {
-            filtered = filtered.filter(lead => 
-                (lead.agent?.name && lead.agent.name === filters.agent) ||
-                lead.agentName === filters.agent
+        if (filters.createdBy) {
+            filtered = filtered.filter(lead =>
+                (lead.createdBy?.name && lead.createdBy.name === filters.createdBy) ||
+                lead.createdByName === filters.createdBy
             );
         }
         
@@ -608,7 +608,9 @@ const AccountantLeads = () => {
     };
     
     const uniqueBanks = getUniqueValues(leads, 'bank.name');
-    const uniqueAgents = getUniqueValues(leads, 'agent.name');
+    const uniqueCreatedBy = getUniqueValues(leads, 'createdByName').concat(
+        getUniqueValues(leads, 'createdBy.name')
+    ).filter((v, i, arr) => arr.indexOf(v) === i);
     const uniqueStatuses = getUniqueValues(leads, 'status');
 
     return (
@@ -690,16 +692,16 @@ const AccountantLeads = () => {
                     </div>
                     
                     <div className="flex-1 min-w-[140px] sm:min-w-[150px]">
-                        <label className="block text-xs font-medium text-gray-700 mb-1.5">Agent</label>
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">Created By</label>
                         <div className="relative">
                         <select
-                            value={filters.agent}
-                            onChange={(e) => setFilters(prev => ({ ...prev, agent: e.target.value }))}
+                            value={filters.createdBy}
+                            onChange={(e) => setFilters(prev => ({ ...prev, createdBy: e.target.value }))}
                                 className="w-full px-3 py-2 pr-8 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none appearance-none bg-white"
                         >
-                            <option value="">All Agents</option>
-                            {uniqueAgents.map(agent => (
-                                <option key={agent} value={agent}>{agent}</option>
+                            <option value="">All creators</option>
+                            {uniqueCreatedBy.map((name) => (
+                                <option key={name} value={name}>{name}</option>
                             ))}
                         </select>
                             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
@@ -708,7 +710,7 @@ const AccountantLeads = () => {
                     
                     <div className="flex items-center justify-center w-full sm:w-auto sm:items-end">
                         <button
-                            onClick={() => setFilters({ status: '', bank: '', agent: '', dateRange: { from: '', to: '' } })}
+                            onClick={() => setFilters({ status: '', bank: '', createdBy: '', dateRange: { from: '', to: '' } })}
                             className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                         >
                             Clear All
@@ -776,38 +778,14 @@ const AccountantLeads = () => {
                                             <span>Remaining</span>
                                         </div>
                                     </th>
-                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap min-w-[100px] cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('agentCommissionPercentage')}>
+                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap min-w-[100px] cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('commissionPercentage')}>
                                         <div className="flex items-center justify-end gap-2">
-                                            <span>Agent Comm %</span>
+                                            <span>Commission %</span>
                                         </div>
                                     </th>
-                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap min-w-[120px] cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('agentCommissionAmount')}>
+                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap min-w-[120px] cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('commissionAmount')}>
                                         <div className="flex items-center justify-end gap-2">
-                                            <span>Agent Comm AMT</span>
-                                        </div>
-                                    </th>
-                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('subAgentCommissionPercentage')}>
-                                        <div className="flex items-center justify-end gap-2">
-                                            <span>Sub Agent Comm %</span>
-
-                                        </div>
-                                    </th>
-                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('subAgentCommissionAmount')}>
-                                        <div className="flex items-center justify-end gap-2">
-                                            <span>Sub Agent Comm AMT</span>
-
-                                        </div>
-                                    </th>
-                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('commissionPercentage')}>
-                                        <div className="flex items-center justify-end gap-2">
-                                            <span>Associated Comm %</span>
-
-                                        </div>
-                                    </th>
-                                    <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap cursor-pointer hover:bg-gray-100 transition-colors text-right" onClick={() => handleSort('commissionAmount')}>
-                                        <div className="flex items-center justify-end gap-2">
-                                            <span>Associated Comm AMT</span>
-
+                                            <span>Commission AMT</span>
                                         </div>
                                     </th>
                                     <th className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('bank.name')}>
@@ -910,24 +888,6 @@ const AccountantLeads = () => {
                                                 </td>
                                                 <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-blue-600 text-right">
                                                     {(() => {
-                                                        const percentage = lead.agentCommissionPercentage || 0;
-                                                        return typeof percentage === 'number' ? percentage.toFixed(2) : parseFloat(percentage || 0).toFixed(2);
-                                                    })()}%
-                                                </td>
-                                                <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-bold text-blue-600 text-right font-mono">
-                                                    {formatCurrency(lead.agentCommissionAmount || 0)}
-                                                </td>
-                                                <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-blue-600 text-right">
-                                                    {(() => {
-                                                        const percentage = lead.subAgentCommissionPercentage || 0;
-                                                        return typeof percentage === 'number' ? percentage.toFixed(2) : parseFloat(percentage || 0).toFixed(2);
-                                                    })()}%
-                                                </td>
-                                                <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-bold text-blue-600 text-right font-mono">
-                                                    {formatCurrency(lead.subAgentCommissionAmount || 0)}
-                                                </td>
-                                                <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-blue-600 text-right">
-                                                    {(() => {
                                                         const percentage = lead.commissionPercentage || 0;
                                                         return typeof percentage === 'number' ? percentage.toFixed(2) : parseFloat(percentage || 0).toFixed(2);
                                                     })()}%
@@ -986,7 +946,7 @@ const AccountantLeads = () => {
                                                         const thresholdEligible = disbursedPct >= safeThresholdPct;
                                                         const canGenerateInvoice = statusEligible && thresholdEligible;
                                                         const hasInvoice =
-                                                            lead.hasInvoice || lead.hasAgentInvoice;
+                                                            lead.hasInvoice;
 
                                                         if (!canGenerateInvoice) {
                                                             return (
@@ -1313,23 +1273,23 @@ const AccountantLeads = () => {
                                         </div>
                                         <div>
                                             <label className="text-xs font-semibold text-gray-500">Commission %</label>
-                                            <p className="text-sm font-medium text-gray-900 mt-1">{viewLeadData.agentCommissionPercentage || viewLeadData.commissionPercentage || viewLeadData.commissionPercent || 0}%</p>
+                                            <p className="text-sm font-medium text-gray-900 mt-1">{viewLeadData.commissionPercentage || viewLeadData.commissionPercent || 0}%</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Agent & Banker Information */}
+                                {/* Creator & Banker Information */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200">
-                                        <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Agent Details</h4>
+                                        <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Created By</h4>
                                         <div className="space-y-3">
                                             <div>
-                                                <label className="text-xs font-semibold text-gray-500">Agent Name</label>
-                                                <p className="text-sm font-medium text-gray-900 mt-1">{viewLeadData.agent?.name || viewLeadData.agentName || 'N/A'}</p>
+                                                <label className="text-xs font-semibold text-gray-500">Name</label>
+                                                <p className="text-sm font-medium text-gray-900 mt-1">{viewLeadData.createdBy?.name || viewLeadData.createdByName || 'N/A'}</p>
                                             </div>
                                             <div>
                                                 <label className="text-xs font-semibold text-gray-500">Contact</label>
-                                                <p className="text-sm font-medium text-gray-900 mt-1">{viewLeadData.agent?.mobile || viewLeadData.agent?.phone || viewLeadData.agentContact || 'N/A'}</p>
+                                                <p className="text-sm font-medium text-gray-900 mt-1">{viewLeadData.createdBy?.mobile || viewLeadData.createdBy?.email || 'N/A'}</p>
                                             </div>
                                         </div>
                                     </div>

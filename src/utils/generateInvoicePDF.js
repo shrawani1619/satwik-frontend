@@ -136,21 +136,15 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
   };
 
   const lead = invoiceData.lead || {};
-  const creator = lead.createdByResolved || lead.createdBy;
-  let receiver = null;
-  if (creator && typeof creator === 'object') {
-    if (creator.role === 'franchise' && invoiceData.franchise && typeof invoiceData.franchise === 'object') {
-      receiver = invoiceData.franchise;
-    } else {
-      receiver = creator;
-    }
-  } else if (invoiceData.invoiceType === 'franchise') {
-    receiver = invoiceData.franchise;
-  } else if (invoiceData.invoiceType === 'sub_agent') {
-    receiver = invoiceData.subAgent || invoiceData.agent;
-  } else {
-    receiver = invoiceData.agent;
-  }
+  const payee =
+    invoiceData.payee && typeof invoiceData.payee === 'object'
+      ? invoiceData.payee
+      : null;
+  const franchise =
+    invoiceData.franchise && typeof invoiceData.franchise === 'object'
+      ? invoiceData.franchise
+      : null;
+  const receiver = payee || franchise;
 
   const receiverName = receiver?.name || 'N/A';
   let receiverAddress = 'N/A';
@@ -161,7 +155,7 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
   } else if (receiver?.city) {
     receiverAddress = receiver.city;
   }
-  const receiverGST = receiver?.kyc?.gst || 'N/A';
+  const receiverGST = receiver?.kyc?.gst || receiver?.gst || 'N/A';
   const receiverMobile = receiver?.mobile || 'N/A';
   const receiverEmail = receiver?.email || 'N/A';
   const receiverState =
@@ -209,17 +203,11 @@ export const generateInvoicePDF = (invoiceData, companySettings = {}, robotoFont
   const product = lead.loanType ? lead.loanType.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) : 'N/A';
   const amountDisbursed = lead.disbursedAmount || lead.loanAmount || 0;
 
-  let payoutRate = 0;
-  if (invoiceData.invoiceType === 'sub_agent') {
-    payoutRate = lead.subAgentCommissionPercentage || invoiceData.subAgentCommissionPercentage || 0;
-  } else if (invoiceData.invoiceType === 'agent') {
-    const agentTotalPercentage =
-      lead.agentCommissionPercentage || invoiceData.agentCommissionPercentage || receiver?.commissionPercentage || 0;
-    const subAgentPercentage = lead.subAgentCommissionPercentage || 0;
-    payoutRate = agentTotalPercentage - subAgentPercentage;
-  } else {
-    payoutRate = lead.commissionPercentage || invoiceData.commissionPercentage || receiver?.commissionPercentage || 0;
-  }
+  let payoutRate =
+    lead.commissionPercentage ||
+    invoiceData.commissionPercentage ||
+    receiver?.commissionPercentage ||
+    0;
 
   let commission = invoiceData.commissionAmount || 0;
   if (commission === 0 && amountDisbursed > 0 && payoutRate > 0) {

@@ -33,7 +33,6 @@ const Header = ({ onMenuClick, isMobile = false }) => {
     if (!user.role) return 'Dashboard'
 
     const roleMap = {
-      'agent': 'Partner Dashboard',
       'franchise': 'Franchisee Dashboard',
       'regional_manager': 'Regional Manager Dashboard',
       'accounts_manager': 'Accounts Manager Dashboard',

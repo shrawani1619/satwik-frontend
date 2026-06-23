@@ -305,7 +305,7 @@ const EditDisbursementForm = ({
                             {/* Amount */}
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Disbursement Amount *
+                                    Disbursement Amount <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -335,7 +335,7 @@ const EditDisbursementForm = ({
                             {/* Date */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Disbursement Date *
+                                    Disbursement Date <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -361,7 +361,7 @@ const EditDisbursementForm = ({
                             {/* UTR */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    UTR Number *
+                                    UTR Number <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -405,7 +405,7 @@ const EditDisbursementForm = ({
 
                             {/* Commission Type Selection */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Commission Type *</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Commission Type <span className="text-red-500">*</span></label>
                                 <div className="flex gap-3">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -436,7 +436,7 @@ const EditDisbursementForm = ({
                             {formData.commissionType === 'amt' ? (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Commission Amount (₹) *
+                                        Commission Amount (₹) <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
                                         <Calculator className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -464,7 +464,7 @@ const EditDisbursementForm = ({
                             ) : (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Commission Percentage (%) *
+                                        Commission Percentage (%) <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
                                         <Calculator className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />

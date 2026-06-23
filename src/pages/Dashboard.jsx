@@ -5,21 +5,17 @@ import {
   FileCheck,
   Building2,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import IndianRupeeIcon from '../components/IndianRupeeIcon'
 import StatCard from '../components/StatCard'
 import api from '../services/api'
 import { authService } from '../services/auth.service'
-import { toast } from '../services/toastService'
 import AccountantOverview from './AccountantOverview'
 import { formatInCrores } from '../utils/formatUtils'
 
 const Dashboard = () => {
-  const navigate = useNavigate()
   const [stats, setStats] = useState({
     totalLeads: 0,
-    totalAgents: 0,
     totalFranchises: 0,
     totalInvoices: 0,
     totalRevenue: 0,
@@ -27,14 +23,8 @@ const Dashboard = () => {
   })
   const [relatedLists, setRelatedLists] = useState({
     recentLeads: [],
-    recentAgents: [],
     recentFranchises: [],
     recentInvoices: [],
-  })
-  const [agentData, setAgentData] = useState({
-    completedLeadsWithoutInvoices: [],
-    pendingInvoicesForAction: [],
-    escalatedInvoicesList: [],
   })
   const [loanDistribution, setLoanDistribution] = useState([])
   const [leadConversionFunnel, setLeadConversionFunnel] = useState([])
@@ -55,9 +45,6 @@ const Dashboard = () => {
       let dashboardData
       try {
         switch (userRole) {
-          case 'agent':
-            dashboardData = await api.dashboard.getAgentDashboard(params)
-            break
           case 'franchise':
             dashboardData = await api.dashboard.getFranchiseOwnerDashboard(params)
             break
@@ -71,7 +58,7 @@ const Dashboard = () => {
             break
         }
       } catch (roleError) {
-        if (userRole === 'accounts_manager' || userRole === 'agent' || userRole === 'franchise') {
+        if (userRole === 'accounts_manager' || userRole === 'franchise') {
           throw roleError
         }
         console.warn('Role-specific dashboard failed, trying admin:', roleError)
@@ -83,50 +70,24 @@ const Dashboard = () => {
 
       console.log('🔍 DEBUG: Dashboard data received:', data)
 
-      if (userRole === 'agent') {
-        setStats({
-          totalLeads: data.leads?.total || 0,
-          totalAgents: 0,
-          totalInvoices: (data.invoices?.pending || 0) + (data.invoices?.approved || 0) + (data.invoices?.escalated || 0),
-          totalRevenue: data.totalCommission || 0,
-          leads: data.leads || {},
-          invoices: data.invoices || {},
-          payouts: data.payouts || {},
-        })
-        setLeadConversionFunnel(Array.isArray(data.leadConversionFunnel) ? data.leadConversionFunnel : [])
-      } else {
-        setStats({
-          totalLeads: data.totalLeads || data.leads?.total || 0,
-          totalAgents: data.totalAgents || data.agents?.total || 0,
-          totalFranchises: data.totalFranchises || 0,
-          totalInvoices: data.totalInvoices || data.invoices?.total || 0,
-          totalRevenue: data.totalRevenue || data.revenue || data.totalCommission || 0,
-          totalLoanAmount: data.totalLoanAmount || 0,
-        })
-      }
+      setStats({
+        totalLeads: data.totalLeads || data.leads?.total || 0,
+        totalFranchises: data.totalFranchises || 0,
+        totalInvoices: data.totalInvoices || data.invoices?.total || 0,
+        totalRevenue: data.totalRevenue || data.revenue || data.totalCommission || 0,
+        totalLoanAmount: data.totalLoanAmount || 0,
+      })
 
       console.log('🔍 DEBUG: Dashboard stats set:', {
         totalLeads: data.totalLeads || data.leads?.total || 0,
-        totalAgents: data.totalAgents || data.agents?.total || 0,
         totalInvoices: data.totalInvoices || data.invoices?.total || 0,
         totalRevenue: data.totalRevenue || data.revenue || data.totalCommission || 0,
       })
-
-      // Set agent-specific data
-      if (userRole === 'agent') {
-        setAgentData({
-          completedLeadsWithoutInvoices: Array.isArray(data.completedLeadsWithoutInvoices) ? data.completedLeadsWithoutInvoices : [],
-          pendingInvoicesForAction: Array.isArray(data.pendingInvoicesForAction) ? data.pendingInvoicesForAction : [],
-          escalatedInvoicesList: Array.isArray(data.escalatedInvoicesList) ? data.escalatedInvoicesList : [],
-        })
-        setRelatedLists((prev) => ({ ...prev, recentLeads: [] }))
-      }
 
       // Set related lists (for admin, regional manager, and franchise owner dashboards)
       if (userRole === 'super_admin' || userRole === 'regional_manager' || userRole === 'franchise') {
         setRelatedLists({
           recentLeads: Array.isArray(data.recentLeads) ? data.recentLeads : [],
-          recentAgents: Array.isArray(data.recentAgents) ? data.recentAgents : [],
           recentFranchises: Array.isArray(data.recentFranchises) ? data.recentFranchises : [],
           recentInvoices: Array.isArray(data.recentInvoices) ? data.recentInvoices : [],
         })
@@ -141,7 +102,6 @@ const Dashboard = () => {
       // Fallback to empty stats on error - app will still render
       setStats({
         totalLeads: 0,
-        totalAgents: 0,
         totalFranchises: 0,
         totalInvoices: 0,
         totalRevenue: 0,
@@ -155,21 +115,7 @@ const Dashboard = () => {
     fetchDashboardData()
   }, [fetchDashboardData])
 
-  const handleRaiseInvoice = async (leadId) => {
-    try {
-      // Navigate to lead details page
-      // Invoices are typically auto-generated when leads are completed
-      // If invoice is missing, admin can generate it from the lead details page
-      navigate(`/leads/${leadId}`)
-      toast.info('Info', 'Viewing lead details. Contact admin if invoice needs to be generated.')
-    } catch (error) {
-      console.error('Error navigating to lead:', error)
-      toast.error('Error', 'Failed to open lead details')
-    }
-  }
-
-  const { totalLeads, totalAgents, totalFranchises, totalRevenue, totalLoanAmount } = stats
-  const isAgent = userRole === 'agent'
+  const { totalLeads, totalFranchises, totalRevenue, totalLoanAmount } = stats
   const isAccountant = userRole === 'accounts_manager'
   const isRegionalManager = userRole === 'regional_manager'
 
@@ -190,153 +136,15 @@ const Dashboard = () => {
         <span>Dashboard</span>
         <span>/</span>
         <span className="text-gray-900 font-medium">Home</span>
-        {isAgent && <><span>/</span><span className="text-gray-900 font-medium">Partner Portal</span></>}
-        {!isAgent && <><span>/</span><span className="text-gray-900 font-medium">Analytics</span></>}
+        <span>/</span>
+        <span className="text-gray-900 font-medium">Analytics</span>
       </div>
 
-      {/* Partner Dashboard */}
-      {isAgent ? (
-        <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              title="Total Leads"
-              value={stats.totalLeads || 0}
-              icon={Users}
-              color="blue"
-            />
-            <StatCard
-              title="Pending"
-              value={stats.leads?.pending || 0}
-              icon={FileCheck}
-              color="orange"
-            />
-            <StatCard
-              title="Pending Invoices"
-              value={stats.invoices?.pending || 0}
-              icon={FileText}
-              color="purple"
-            />
-            <StatCard
-              title="Total Commission"
-              value={`₹${((stats.totalRevenue || 0) / 1000).toFixed(1)}K`}
-              icon={IndianRupeeIcon}
-              color="green"
-            />
-          </div>
-
-          {/* Raise Payout Invoices Section */}
-          {agentData.completedLeadsWithoutInvoices.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
-                <h2 className="text-lg md:text-xl font-bold text-gray-900">Raise Payout Invoices</h2>
-                <span className="text-xs md:text-sm text-gray-600">{agentData.completedLeadsWithoutInvoices.length} completed leads without invoices</span>
-              </div>
-              <div className="space-y-3 md:space-y-3">
-                {agentData.completedLeadsWithoutInvoices.slice(0, 5).map((lead) => (
-                  <div key={lead._id || lead.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 break-words">{lead.loanAccountNo || 'N/A'}</p>
-                      <p className="text-xs text-gray-600 mt-1 break-words">
-                        {lead.loanAccountNo || 'N/A'} • {lead.bank?.name || 'N/A'} • ₹{(lead.loanAmount || 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleRaiseInvoice(lead._id || lead.id)}
-                      className="w-full sm:w-auto px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 bg-primary-900 text-white rounded-lg hover:bg-primary-800 transition-colors text-sm font-medium"
-                    >
-                      Request Invoice
-                    </button>
-                  </div>
-                ))}
-                {agentData.completedLeadsWithoutInvoices.length > 5 && (
-                  <button
-                    onClick={() => navigate('/leads?status=completed&hasInvoice=false')}
-                    className="w-full text-sm text-primary-900 hover:text-primary-800 font-medium py-2"
-                  >
-                    View All ({agentData.completedLeadsWithoutInvoices.length} leads)
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Accept or Escalate Invoices Section */}
-          {agentData.pendingInvoicesForAction.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-              <div className="flex items-center justify-between mb-4 gap-2">
-                <h2 className="text-lg md:text-xl font-bold text-gray-900 flex-1 min-w-0">Pending Invoices - Action Required</h2>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 whitespace-nowrap flex-shrink-0">
-                  {agentData.pendingInvoicesForAction.length} Pending
-                </span>
-              </div>
-              <div className="space-y-4 md:space-y-3">
-                {agentData.pendingInvoicesForAction.slice(0, 5).map((invoice) => (
-                  <div key={invoice._id || invoice.id} className="flex flex-col gap-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 break-words">{invoice.invoiceNumber || 'N/A'}</p>
-                      <p className="text-xs text-gray-600 mt-1 break-words">
-                        {invoice.lead?.loanAccountNo || 'N/A'} • ₹{(invoice.commissionAmount || invoice.netPayable || 0).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {agentData.pendingInvoicesForAction.length > 5 && (
-                  <button
-                    onClick={() => navigate('/invoices?status=pending')}
-                    className="w-full text-sm text-primary-900 hover:text-primary-800 font-medium py-2"
-                  >
-                    View All ({agentData.pendingInvoicesForAction.length} invoices)
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Escalated Invoices Section */}
-          {agentData.escalatedInvoicesList.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-              <div className="flex items-center justify-between mb-4 gap-2">
-                <h2 className="text-lg md:text-xl font-bold text-gray-900 flex-1 min-w-0">Escalated Invoices</h2>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 whitespace-nowrap flex-shrink-0">
-                  {agentData.escalatedInvoicesList.length} Escalated
-                </span>
-              </div>
-              <div className="space-y-4 md:space-y-3">
-                {agentData.escalatedInvoicesList.slice(0, 5).map((invoice) => (
-                  <div key={invoice._id || invoice.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-orange-50 rounded-lg border border-orange-200">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 break-words">{invoice.invoiceNumber || 'N/A'}</p>
-                      <p className="text-xs text-gray-600 mt-1 break-words">
-                        {invoice.lead?.loanAccountNo || 'N/A'} • ₹{(invoice.commissionAmount || invoice.netPayable || 0).toLocaleString()}
-                      </p>
-                      {invoice.escalationReason && (
-                        <p className="text-xs text-orange-700 mt-1 break-words">Reason: {invoice.escalationReason}</p>
-                      )}
-                    </div>
-                    <span className="inline-flex items-center justify-center px-3 py-1.5 bg-orange-200 text-orange-800 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 self-start sm:self-auto">
-                      Under Review
-                    </span>
-                  </div>
-                ))}
-                {agentData.escalatedInvoicesList.length > 5 && (
-                  <button
-                    onClick={() => navigate('/invoices?status=escalated')}
-                    className="w-full text-sm text-primary-900 hover:text-primary-800 font-medium py-2"
-                  >
-                    View All ({agentData.escalatedInvoicesList.length} invoices)
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <>
+      <>
           {/* Summary Cards - Admin / Regional / Franchise */}
           <div
             className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${
-              isRegionalManager ? 'lg:grid-cols-3' : 'lg:grid-cols-5'
+              isRegionalManager ? 'lg:grid-cols-2' : 'lg:grid-cols-4'
             }`}
           >
             <StatCard
@@ -344,12 +152,6 @@ const Dashboard = () => {
               value={totalLeads}
               icon={Users}
               color="blue"
-            />
-            <StatCard
-              title="Active Agents"
-              value={totalAgents}
-              icon={Users}
-              color="green"
             />
             {!isRegionalManager && (
               <StatCard
@@ -504,7 +306,6 @@ const Dashboard = () => {
             </div>
           )}
         </>
-      )}
     </div>
   )
 }

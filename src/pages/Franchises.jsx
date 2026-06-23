@@ -1,13 +1,12 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Plus, Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Store, Users, TrendingUp, ChevronDown, ChevronUp, FileDown } from 'lucide-react'
+import { Plus, Search, Filter, Eye, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Store, TrendingUp, ChevronDown, ChevronUp, FileDown } from 'lucide-react'
 import IndianRupeeIcon from '../components/IndianRupeeIcon'
 import api from '../services/api'
 import { authService } from '../services/auth.service'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
 import FranchiseForm from '../components/FranchiseForm'
-import AgentForm from '../components/AgentForm'
 import StatCard from '../components/StatCard'
 import ConfirmModal from '../components/ConfirmModal'
 import { toast } from '../services/toastService'
@@ -18,7 +17,6 @@ const Franchises = () => {
 
   const [franchises, setFranchises] = useState([])
   const [leads, setLeads] = useState([])
-  const [agents, setAgents] = useState([])
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -35,14 +33,11 @@ const Franchises = () => {
   const [isSavingFranchise, setIsSavingFranchise] = useState(false)
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, franchise: null })
-  const [isCreateAgentModalOpen, setIsCreateAgentModalOpen] = useState(false)
-  const [isCreatingAgent, setIsCreatingAgent] = useState(false)
 
   useEffect(() => {
     if (userRole === 'accounts_manager' || userRole === 'regional_manager') return
     fetchFranchises()
     fetchLeads()
-    fetchAgents()
     fetchInvoices()
   }, [userRole])
 
@@ -75,18 +70,6 @@ const Franchises = () => {
     } catch (error) {
       console.error('Error fetching leads:', error)
       setLeads([])
-    }
-  }
-
-  const fetchAgents = async () => {
-    try {
-      // Fetch all agents using users endpoint with role filter
-      const response = await api.users.getAll({ role: 'agent', limit: 10000, page: 1 })
-      const agentsData = response.data || response || []
-      setAgents(Array.isArray(agentsData) ? agentsData : [])
-    } catch (error) {
-      console.error('Error fetching agents:', error)
-      setAgents([])
     }
   }
 
@@ -124,44 +107,23 @@ const Franchises = () => {
     }
   }
 
-  // Get franchise statistics
   const getFranchiseStats = (franchiseId) => {
     if (!franchiseId) {
-      return { agents: 0, leads: 0, revenue: 0 }
+      return { leads: 0, revenue: 0 }
     }
 
     const franchiseIdStr = franchiseId?.toString()
 
-    // Filter agents: agents are associated with franchises via managedBy and managedByModel
-    const franchiseAgents = agents.filter(agent => {
-      // Exclude sub-agents (those with parentAgent)
-      if (agent.parentAgent) return false
-      
-      // Check if agent is managed by this franchise
-      if (agent.managedByModel === 'Franchise') {
-        const managedById = agent.managedBy?._id || agent.managedBy?.id || agent.managedBy
-        return managedById?.toString() === franchiseIdStr
-      }
-      
-      // Legacy check for direct franchise field
-      const agentFranchiseId = agent.franchise?._id || agent.franchise?.id || agent.franchise || agent.franchiseId
-      return agentFranchiseId?.toString() === franchiseIdStr
-    })
-
-    // Filter leads: leads are associated with franchises via associated and associatedModel
     const franchiseLeads = leads.filter(lead => {
-      // Check if lead is associated with this franchise
       if (lead.associatedModel === 'Franchise') {
         const associatedId = lead.associated?._id || lead.associated?.id || lead.associated
         return associatedId?.toString() === franchiseIdStr
       }
-      
-      // Legacy check for direct franchise field
+
       const leadFranchiseId = lead.franchise?._id || lead.franchise?.id || lead.franchise || lead.franchiseId
       return leadFranchiseId?.toString() === franchiseIdStr
     })
 
-    // Filter invoices: invoices have a direct franchise field
     const franchiseInvoices = invoices.filter(invoice => {
       const invoiceFranchiseId = invoice.franchise?._id || invoice.franchise?.id || invoice.franchise || invoice.franchiseId
       return invoiceFranchiseId?.toString() === franchiseIdStr
@@ -172,29 +134,15 @@ const Franchises = () => {
     }, 0)
 
     return {
-      agents: franchiseAgents.length,
       leads: franchiseLeads.length,
       revenue: revenue
     }
   }
 
-  // Calculate statistics
   const totalFranchises = franchises.length
   const activeFranchises = franchises.filter(f => f.status === 'active').length
   const allFranchiseStats = franchises.map(f => getFranchiseStats(f.id || f._id))
   const totalRevenue = allFranchiseStats.reduce((sum, stats) => sum + stats.revenue, 0)
-  const totalAgentsCount = allFranchiseStats.reduce((sum, stats) => sum + stats.agents, 0)
-
-  // Get franchise statistics (if needed, can be fetched from API)
-  // const getFranchiseStats = async (franchiseId) => {
-  //   try {
-  //     const performance = await api.franchises.getPerformance(franchiseId)
-  //     return performance
-  //   } catch (error) {
-  //     console.error('Error fetching franchise stats:', error)
-  //     return { agents: 0, leads: 0, activeLeads: 0 }
-  //   }
-  // }
 
   const cityOptions = useMemo(() => {
     const cities = [...new Set(franchises.map(f => f.address?.city).filter(Boolean))].sort()
@@ -291,77 +239,6 @@ const Franchises = () => {
     setIsDetailModalOpen(true)
   }
 
-  const handleCreateAgentForFranchise = (franchise) => {
-    setSelectedFranchise(franchise)
-    setIsCreateAgentModalOpen(true)
-  }
-
-  const handleCreateAgentSave = async (formData, files = {}) => {
-    try {
-      setIsCreatingAgent(true)
-      const { phone, ...rest } = formData
-      const agentData = {
-        name: rest.name,
-        email: rest.email,
-        mobile: phone?.trim() || '',
-        password: rest.password || 'Agent@123',
-        role: 'agent',
-        status: rest.status || 'active',
-        agentType: rest.agentType || 'normal',
-        managedBy: rest.managedBy || rest.franchise || rest.managedBy || '',
-        managedByModel: rest.managedByModel || (rest.franchise ? 'Franchise' : 'Franchise'),
-        kyc: rest.kyc || undefined,
-        bankDetails: rest.bankDetails || undefined,
-      }
-
-      const response = await api.agents.create(agentData)
-      const created = response.data || response
-
-      const agentId = created._id || created.id || created.data?._id
-      try {
-        const pendingFiles = files.pendingFiles || {}
-        for (const [docType, fileObj] of Object.entries(pendingFiles)) {
-          const file = fileObj?.file
-          const label = fileObj?.label
-          if (file) {
-            const fd = new FormData()
-            fd.append('file', file)
-            fd.append('entityType', 'user')
-            fd.append('entityId', agentId)
-            fd.append('documentType', docType)
-            if (label) fd.append('label', label)
-            await api.documents.upload(fd)
-          }
-        }
-        const additional = files.additionalDocuments || []
-        for (const ad of additional) {
-          const file = ad?.file
-          const label = ad?.label
-          if (file) {
-            const fd = new FormData()
-            fd.append('file', file)
-            fd.append('entityType', 'user')
-            fd.append('entityId', agentId)
-            fd.append('documentType', 'additional')
-            if (label) fd.append('label', label)
-            await api.documents.upload(fd)
-          }
-        }
-      } catch (err) {
-        console.error('Error uploading pending files for new agent:', err)
-      }
-
-      setIsCreateAgentModalOpen(false)
-      toast.success('Success', 'Partner created successfully')
-      await fetchAgents()
-    } catch (error) {
-      console.error('Error creating agent:', error)
-      toast.error('Error', error.message || 'Failed to create partner')
-    } finally {
-      setIsCreatingAgent(false)
-    }
-  }
-
   useEffect(() => {
     if (isDetailModalOpen && selectedFranchise) {
       const franchiseId = selectedFranchise.id || selectedFranchise._id
@@ -383,9 +260,8 @@ const Franchises = () => {
         }
         const response = await api.franchises.update(franchiseId, formData)
         await fetchFranchises()
-        await fetchLeads() // Refresh to update statistics
-        await fetchAgents() // Refresh to update statistics
-        await fetchInvoices() // Refresh to update statistics
+        await fetchLeads()
+        await fetchInvoices()
         setIsEditModalOpen(false)
         setSelectedFranchise(null)
         toast.success('Success', 'Franchise updated successfully')
@@ -431,9 +307,8 @@ const Franchises = () => {
           }
 
           await fetchFranchises()
-          await fetchLeads() // Refresh to update statistics
-          await fetchAgents() // Refresh to update statistics
-          await fetchInvoices() // Refresh to update statistics
+          await fetchLeads()
+          await fetchInvoices()
           setIsCreateModalOpen(false)
           toast.success('Success', 'Franchise created successfully and saved to database')
         } else {
@@ -547,14 +422,14 @@ const Franchises = () => {
           </div>
           <span className="text-gray-300 mx-1">|</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-gray-500 font-medium">Partners</span>
-            <span className="font-bold text-orange-600">{totalAgentsCount}</span>
+            <span className="text-gray-500 font-medium">Revenue</span>
+            <span className="font-bold text-orange-600">₹{(totalRevenue / 1000).toFixed(0)}K</span>
           </div>
         </div>
       </div>
 
       {/* Statistics Cards - Desktop Only */}
-      <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="Total Franchises"
           value={totalFranchises}
@@ -566,12 +441,6 @@ const Franchises = () => {
           value={activeFranchises}
           icon={TrendingUp}
           color="green"
-        />
-        <StatCard
-          title="Total Partners"
-          value={totalAgentsCount}
-          icon={Users}
-          color="orange"
         />
         <StatCard
           title="Total Revenue"
@@ -919,14 +788,10 @@ const Franchises = () => {
                 return (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Total Agents</p>
-                      <p className="text-lg font-bold text-gray-900">{stats.agents}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-xs text-gray-500">Total Leads</p>
                       <p className="text-lg font-bold text-primary-900">{stats.leads}</p>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-3 col-span-2">
+                    <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-xs text-gray-500">Total Revenue</p>
                       <p className="text-lg font-bold text-gray-900">
                         ₹{stats.revenue.toLocaleString()}
@@ -948,17 +813,6 @@ const Franchises = () => {
                 Edit Franchise
               </button>
             </div>
-            <div className="pt-2 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setIsDetailModalOpen(false)
-                  handleCreateAgentForFranchise(selectedFranchise)
-                }}
-                className="w-full px-4 py-2 bg-primary-700 text-white rounded-lg hover:bg-primary-600 transition-colors"
-              >
-                Create Partner
-              </button>
-            </div>
           </div>
         )}
       </Modal>
@@ -974,16 +828,6 @@ const Franchises = () => {
         cancelText="Cancel"
         type="danger"
       />
-      <Modal isOpen={isCreateAgentModalOpen} onClose={() => { setIsCreateAgentModalOpen(false); setSelectedFranchise(null) }} title={`Create Partner${selectedFranchise ? ` for ${selectedFranchise.name}` : ''}`} size="md">
-        <AgentForm
-          onSave={handleCreateAgentSave}
-          onClose={() => { setIsCreateAgentModalOpen(false); setSelectedFranchise(null) }}
-          isSaving={isCreatingAgent}
-          fixedManagedBy={selectedFranchise ? (selectedFranchise._id || selectedFranchise.id) : null}
-          fixedManagedByModel="Franchise"
-          hideManagedBySelector={true}
-        />
-      </Modal>
     </div>
   )
 }

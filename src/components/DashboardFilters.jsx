@@ -87,12 +87,10 @@ export default function DashboardFilters({ filters = {}, onApply, onReset, role 
   const [local, setLocal] = useState(() => ({ ...filters }))
   const [datePreset, setDatePreset] = useState('')
   const [franchises, setFranchises] = useState([])
-  const [agents, setAgents] = useState([])
   const [banks, setBanks] = useState([])
   const [loadingOptions, setLoadingOptions] = useState(false)
 
   const showFranchise = role === 'super_admin' || role === 'regional_manager' || role === 'accounts_manager'
-  const showAgent = showFranchise || role === 'franchise'
   const showBank = true
 
   useEffect(() => {
@@ -108,22 +106,17 @@ export default function DashboardFilters({ filters = {}, onApply, onReset, role 
           const res = await api.franchises.getAll({ limit: 500 })
           setFranchises(Array.isArray(res?.data) ? res.data : res?.franchises || [])
         }
-        if (showAgent) {
-          const res = await api.agents.getAll({ limit: 500 })
-          setAgents(Array.isArray(res?.data) ? res.data : res?.agents || [])
-        }
         const bankRes = await api.banks.getAll({ limit: 500 })
         setBanks(Array.isArray(bankRes?.data) ? bankRes.data : bankRes?.banks || [])
       } catch (_) {
         setFranchises([])
-        setAgents([])
         setBanks([])
       } finally {
         setLoadingOptions(false)
       }
     }
     load()
-  }, [open, showFranchise, showAgent])
+  }, [open, showFranchise])
 
   const handlePreset = (presetId) => {
     setDatePreset(presetId)
@@ -145,7 +138,6 @@ export default function DashboardFilters({ filters = {}, onApply, onReset, role 
     if (!out.dateFrom) delete out.dateFrom
     if (!out.dateTo) delete out.dateTo
     if (!out.franchiseId) delete out.franchiseId
-    if (!out.agentId) delete out.agentId
     if (!out.bankId) delete out.bankId
     if (!out.codeUse) delete out.codeUse
     if (!out.leadStatus) delete out.leadStatus
@@ -237,24 +229,6 @@ export default function DashboardFilters({ filters = {}, onApply, onReset, role 
                   {franchises.map((f) => (
                     <option key={f._id || f.id} value={f._id || f.id}>
                       {f.name || 'Unnamed'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {showAgent && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Partner</label>
-                <select
-                  value={local.agentId || ''}
-                  onChange={(e) => handleChange('agentId', e.target.value)}
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm bg-white"
-                  disabled={loadingOptions}
-                >
-                  <option value="">All partners</option>
-                  {agents.map((a) => (
-                    <option key={a._id || a.id} value={a._id || a.id}>
-                      {a.name || a.email || 'Unnamed'}
                     </option>
                   ))}
                 </select>

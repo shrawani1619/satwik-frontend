@@ -449,7 +449,6 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
     delete: (id) => apiRequest(`/franchises/${id}`, { method: 'DELETE' }),
-    getAgents: (id) => apiRequest(`/franchises/${id}/agents`),
     getPerformance: (id) => apiRequest(`/franchises/${id}/performance`),
   },
 
@@ -667,10 +666,6 @@ export const api = {
 
   // Dashboard endpoints
   dashboard: {
-    getAgentDashboard: (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return apiRequest(`/dashboard/agent${queryString ? `?${queryString}` : ''}`);
-    },
     getAccountsDashboard: (params = {}) => {
       const queryString = new URLSearchParams(params).toString();
       return apiRequest(`/dashboard/accounts${queryString ? `?${queryString}` : ''}`);

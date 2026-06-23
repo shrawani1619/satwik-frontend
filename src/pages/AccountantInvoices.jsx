@@ -23,12 +23,10 @@ const AccountantInvoices = () => {
   const [invoices, setInvoices] = useState([])
   const [leads, setLeads] = useState([])
   const [franchises, setFranchises] = useState([])
-  const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [franchiseFilter, setFranchiseFilter] = useState('')
-  const [agentFilter, setAgentFilter] = useState('')
   const [dateFromFilter, setDateFromFilter] = useState('')
   const [dateToFilter, setDateToFilter] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(true)
@@ -55,7 +53,6 @@ const AccountantInvoices = () => {
     fetchInvoices()
     fetchLeads()
     fetchFranchises()
-    fetchAgents()
   }, [])
 
   const fetchFranchises = async () => {
@@ -65,14 +62,6 @@ const AccountantInvoices = () => {
       setFranchises(Array.isArray(data) ? data : [])
     } catch (_) { setFranchises([]) }
   }
-  const fetchAgents = async () => {
-    try {
-      const res = await api.agents.getAll()
-      const data = res?.data || res || []
-      setAgents(Array.isArray(data) ? data : [])
-    } catch (_) { setAgents([]) }
-  }
-
   const fetchInvoices = async () => {
     try {
       setLoading(true)
@@ -174,20 +163,21 @@ const AccountantInvoices = () => {
         const fid = invoice.franchise?._id || invoice.franchise?.id || invoice.franchise
         if (!fid || (fid !== franchiseFilter && fid.toString() !== franchiseFilter)) return false
       }
-      if (agentFilter) {
-        const aid = invoice.agent?._id || invoice.agent?.id || invoice.agent
-        if (!aid || (aid !== agentFilter && aid.toString() !== agentFilter)) return false
-      }
       const leadId = invoice.lead?._id || invoice.lead?.id || invoice.lead || invoice.leadId
       const lead = leads.find(l => {
         const lId = l.id || l._id
         return lId === leadId || lId?.toString() === leadId?.toString()
       })
       const searchLower = searchTerm.toLowerCase()
+      const createdByName =
+        invoice.createdBy?.name ||
+        invoice.lead?.createdByResolved?.name ||
+        invoice.lead?.createdBy?.name ||
+        ''
       const matchesSearch =
         (invoice.invoiceNumber && invoice.invoiceNumber.toLowerCase().includes(searchLower)) ||
         (lead && lead.loanAccountNo && lead.loanAccountNo.toLowerCase().includes(searchLower)) ||
-        (invoice.agent?.name && invoice.agent.name.toLowerCase().includes(searchLower))
+        (createdByName && createdByName.toLowerCase().includes(searchLower))
       const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter
 
       // Date range filtering
@@ -210,14 +200,13 @@ const AccountantInvoices = () => {
 
       return matchesSearch && matchesStatus
     })
-  }, [invoices, searchTerm, statusFilter, franchiseFilter, agentFilter, dateFromFilter, dateToFilter, leads])
+  }, [invoices, searchTerm, statusFilter, franchiseFilter, dateFromFilter, dateToFilter, leads])
 
-  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || franchiseFilter !== '' || agentFilter !== '' || dateFromFilter !== '' || dateToFilter !== ''
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || franchiseFilter !== '' || dateFromFilter !== '' || dateToFilter !== ''
   const clearInvoiceFilters = () => { 
     setSearchTerm('')
     setStatusFilter('all')
     setFranchiseFilter('')
-    setAgentFilter('')
     setDateFromFilter('')
     setDateToFilter('')
   }
@@ -504,7 +493,8 @@ const AccountantInvoices = () => {
                 const rows = sortedInvoices.map((inv) => ({
                   'Invoice Number': inv.invoiceNumber || 'N/A',
                   'Loan Account No': getLeadName(inv.lead?._id || inv.lead?.id || inv.lead || inv.leadId) || 'N/A',
-                  Partner: inv.agent?.name || 'N/A',
+                  'Payee': inv.payee?.name || 'N/A',
+                  'Created By': inv.createdBy?.name || inv.lead?.createdByResolved?.name || inv.lead?.createdBy?.name || 'N/A',
                   Associated: getAssociatedForInvoice(inv),
                   'Commission Amount': inv.commissionAmount ?? '',
                   'TDS Amount': inv.tdsAmount ?? '',
@@ -582,7 +572,7 @@ const AccountantInvoices = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Search by invoice number, loan account, agent..."
+                placeholder="Search by invoice number, loan account, creator..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
@@ -611,13 +601,6 @@ const AccountantInvoices = () => {
               <select value={franchiseFilter} onChange={(e) => setFranchiseFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white">
                 <option value="">All franchises</option>
                 {franchises.map((f) => <option key={f._id || f.id} value={f._id || f.id}>{f.name || 'Unnamed'}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Partner</label>
-              <select value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white">
-                <option value="">All partners</option>
-                {agents.map((a) => <option key={a._id || a.id} value={a._id || a.id}>{a.name || a.email || 'Unnamed'}</option>)}
               </select>
             </div>
             <div>
@@ -752,21 +735,11 @@ const AccountantInvoices = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          invoice.invoiceType === 'agent'
-                            ? 'bg-blue-100 text-blue-700'
-                            : invoice.invoiceType === 'sub_agent'
-                            ? 'bg-green-100 text-green-700'
-                            : invoice.invoiceType === 'franchise'
+                          invoice.invoiceType === 'franchise'
                             ? 'bg-purple-100 text-purple-700'
                             : 'bg-gray-100 text-gray-700'
                         }`}>
-                          {invoice.invoiceType === 'agent'
-                            ? 'Lead creator'
-                            : invoice.invoiceType === 'sub_agent'
-                            ? 'Sub Partner'
-                            : invoice.invoiceType === 'franchise'
-                            ? 'Franchise'
-                            : 'N/A'}
+                          {invoice.invoiceType === 'franchise' ? 'Franchise' : (invoice.invoiceType || 'N/A')}
                         </span>
                       </div>
                     </td>
@@ -1033,7 +1006,7 @@ const AccountantInvoices = () => {
           </div>
         ) : (fullInvoiceDetails || selectedInvoice) && (() => {
           const invoice = fullInvoiceDetails || selectedInvoice
-          const isGST = invoice.agent?.agentType === 'GST' || invoice.franchise?.franchiseType === 'GST'
+          const isGST = invoice.franchise?.franchiseType === 'GST'
           const cgstRate = companySettings?.taxConfig?.cgstRate || 9
           const sgstRate = companySettings?.taxConfig?.sgstRate || 9
           const commissionAmount = invoice.commissionAmount || 0
@@ -1083,12 +1056,18 @@ const AccountantInvoices = () => {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Partner</label>
+                  <label className="text-sm font-medium text-gray-500">Created By</label>
                   <p className="mt-1 text-sm text-gray-900">
-                    {invoice.agent?.name || 'N/A'}
-                    {invoice.agent?.agentType === 'GST' && (
-                      <span className="ml-2 text-xs bg-teal-100 text-teal-800 px-2 py-0.5 rounded">GST</span>
-                    )}
+                    {invoice.createdBy?.name ||
+                      invoice.lead?.createdByResolved?.name ||
+                      invoice.lead?.createdBy?.name ||
+                      'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Payee</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {invoice.payee?.name || 'N/A'}
                   </p>
                 </div>
                 <div>
@@ -1100,17 +1079,6 @@ const AccountantInvoices = () => {
                     )}
                   </p>
                 </div>
-                {invoice.subAgent && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Sub Partner</label>
-                    <p className="mt-1 text-sm text-gray-900">
-                      {invoice.subAgent?.name || 'N/A'}
-                      {invoice.subAgent?.agentType === 'GST' && (
-                        <span className="ml-2 text-xs bg-teal-100 text-teal-800 px-2 py-0.5 rounded">GST</span>
-                      )}
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Financial Details */}
@@ -1186,10 +1154,10 @@ const AccountantInvoices = () => {
                       {invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString('en-IN') : 'N/A'}
                     </p>
                   </div>
-                  {invoice.agent?.gst && (
+                  {invoice.payee?.kyc?.gst && (
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Partner GST No</label>
-                      <p className="mt-1 text-sm text-gray-900">{invoice.agent.gst}</p>
+                      <label className="text-sm font-medium text-gray-500">Payee GST No</label>
+                      <p className="mt-1 text-sm text-gray-900">{invoice.payee.kyc.gst}</p>
                     </div>
                   )}
                   {invoice.franchise?.gst && (

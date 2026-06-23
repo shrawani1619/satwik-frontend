@@ -27,6 +27,7 @@ const Banks = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedBank, setSelectedBank] = useState(null)
+  const [loadingEditBank, setLoadingEditBank] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, bank: null })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
 
@@ -164,9 +165,24 @@ const Banks = () => {
     setIsCreateModalOpen(true)
   }
 
-  const handleEdit = (bank) => {
-    setSelectedBank(bank)
-    setIsEditModalOpen(true)
+  const handleEdit = async (bank) => {
+    const bankId = bank?.id || bank?._id
+    if (!bankId) {
+      toast.error('Error', 'Bank ID is missing')
+      return
+    }
+    try {
+      setLoadingEditBank(true)
+      const response = await api.banks.getById(bankId)
+      const fullBank = response?.data ?? response
+      setSelectedBank(fullBank)
+      setIsEditModalOpen(true)
+    } catch (error) {
+      console.error('Error fetching bank:', error)
+      toast.error('Error', error.message || 'Failed to load bank details')
+    } finally {
+      setLoadingEditBank(false)
+    }
   }
 
   const handleView = (bank) => {
@@ -176,10 +192,6 @@ const Banks = () => {
 
   const handleSave = async (formData) => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/f11153c6-25cf-4c9c-a0b4-730f202e186d', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'Banks.jsx:150', message: 'Form data received in handleSave', data: formData, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
-      // #endregion
-
       if (selectedBank) {
         const bankId = selectedBank.id || selectedBank._id
         if (!bankId) {
@@ -192,19 +204,6 @@ const Banks = () => {
         setIsEditModalOpen(false)
         toast.success('Success', 'Bank updated successfully')
       } else {
-        // #region agent log
-        console.log('🔍 DEBUG: Form data before API call:', JSON.stringify(formData, null, 2));
-        console.log('🔍 DEBUG: Checking required fields:', {
-          name: formData.name,
-          type: formData.type,
-          contactEmail: formData.contactEmail,
-          contactMobile: formData.contactMobile,
-          contactPerson: formData.contactPerson,
-          status: formData.status
-        });
-        fetch('http://127.0.0.1:7242/ingest/f11153c6-25cf-4c9c-a0b4-730f202e186d', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'Banks.jsx:163', message: 'Creating bank with data', data: formData, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
-        // #endregion
-
         if (!formData.name?.trim()) {
           toast.error('Error', 'Please fill all required fields');
           return;
@@ -214,6 +213,7 @@ const Banks = () => {
           name: formData.name.trim(),
           type: formData.type || 'bank',
           loanTypes: formData.loanTypes || [],
+          loanTenureMonths: formData.loanTenureMonths || {},
           status: formData.status || 'active',
           disbursementThresholdPercentage:
             formData.disbursementThresholdPercentage === ''
@@ -222,10 +222,6 @@ const Banks = () => {
         };
 
         const response = await api.banks.create(bankData)
-        // #region agent log
-        console.log('✅ DEBUG: API response received:', JSON.stringify(response, null, 2));
-        fetch('http://127.0.0.1:7242/ingest/f11153c6-25cf-4c9c-a0b4-730f202e186d', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'Banks.jsx:214', message: 'API response received', data: response, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
-        // #endregion
 
         if (response.success || response.data) {
           await fetchBanks()
@@ -238,9 +234,6 @@ const Banks = () => {
       }
       setSelectedBank(null)
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/f11153c6-25cf-4c9c-a0b4-730f202e186d', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'Banks.jsx:170', message: 'Error saving bank', data: { error: error.message, formData }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
-      // #endregion
       console.error('Error saving bank:', error)
       toast.error('Error', error.message || 'Failed to save bank')
     }
@@ -598,7 +591,11 @@ const Banks = () => {
         }}
         title="Edit Bank"
       >
-        <BankForm bank={selectedBank} onSave={handleSave} onClose={() => setIsEditModalOpen(false)} />
+        {loadingEditBank ? (
+          <p className="py-8 text-center text-sm text-gray-500">Loading bank details…</p>
+        ) : (
+          <BankForm bank={selectedBank} onSave={handleSave} onClose={() => setIsEditModalOpen(false)} />
+        )}
       </Modal>
 
       {/* Detail Modal */}

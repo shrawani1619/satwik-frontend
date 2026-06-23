@@ -75,7 +75,7 @@ const Section130Form = ({ form16, onSave, onClose }) => {
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true)
-      const roles = ['agent', 'franchise', 'regional_manager']
+      const roles = ['franchise', 'regional_manager']
       const allUsers = []
       for (const role of roles) {
         try {

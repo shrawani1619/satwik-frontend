@@ -45,7 +45,6 @@ const AccountantOverview = () => {
         totalLeads = 0,
         verifiedLeads = 0,
         disbursedCases = 0,
-        activeAgents = 0,
         totalFranchises = 0,
         totalInvoices = 0,
         totalRevenue = 0,
@@ -53,7 +52,6 @@ const AccountantOverview = () => {
         loanDistribution = [],
         funnelData = [],
         recentLeads = [],
-        recentAgents = []
     } = dashboardData;
 
     const totalLoanAmountForChart = Array.isArray(loanDistribution)
@@ -170,10 +168,8 @@ const AccountantOverview = () => {
                 </div>
             </div>
 
-            {/* Bottom Section: Tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* Recent Leads Table */}
-                <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
+            {/* Recent Leads */}
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
                     <div className="p-6 flex items-center justify-between border-b border-gray-100">
                         <h3 className="text-lg font-bold text-gray-900">Recent Leads</h3>
                         <button className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">View All</button>
@@ -216,36 +212,6 @@ const AccountantOverview = () => {
                         </table>
                     </div>
                 </div>
-
-                {/* Recent Partners */}
-                <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-                    <div className="p-6 flex items-center justify-between border-b border-gray-100">
-                        <h3 className="text-lg font-bold text-gray-900">Recent Partners</h3>
-                        <button className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">View All</button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto">
-                        <div className="divide-y divide-gray-50">
-                            {recentAgents.length === 0 ? (
-                                <div className="p-10 text-center text-gray-500">No partners found</div>
-                            ) : (
-                                recentAgents.map((agent, idx) => (
-                                    <div key={idx} className="p-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
-                                        <img src={agent.avatar} alt={agent.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow-sm" />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-bold text-gray-900 truncate">{agent.name}</div>
-                                            <div className="text-xs text-gray-500 truncate">{agent.email}</div>
-                                        </div>
-                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${['active', 'Active'].includes(agent.status) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                                            }`}>
-                                            {agent.status}
-                                        </span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };

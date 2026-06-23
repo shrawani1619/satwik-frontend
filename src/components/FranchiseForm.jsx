@@ -459,7 +459,7 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
       {/* KYC Fields */}
       <div className={`grid grid-cols-1 gap-4 ${formData.franchiseType === 'GST' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">PAN</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">PAN <span className="text-red-500">*</span></label>
           <input
             type="text"
             name="kyc.pan"
@@ -484,7 +484,7 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
         </div>
         {formData.franchiseType === 'GST' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">GST</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">GST <span className="text-red-500">*</span></label>
             <input
               type="text"
               name="kyc.gst"
@@ -505,7 +505,7 @@ const FranchiseForm = ({ franchise, onSave, onClose, isSaving = false }) => {
           <input type="text" name="bankDetails.accountHolderName" value={formData.bankDetails?.accountHolderName || ''} onChange={handleNestedChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Account holder name" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Account Number <span className="text-red-500">*</span></label>
           <input
             type="text"
             name="bankDetails.accountNumber"

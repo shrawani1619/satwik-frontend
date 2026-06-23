@@ -74,12 +74,11 @@ function mergeLeadColumnConfig(savedColumns) {
 
 const Leads = () => {
   const userRole = authService.getUser()?.role || 'super_admin'
-  const isAgent = userRole === 'agent'
   const isAccountant = userRole === 'accounts_manager'
-  const canViewHistory = ['super_admin', 'franchise', 'agent'].includes(userRole)
-  const canEdit = !isAgent
-  const canCreate = true // Agents can create leads
-  const canSendDisbursementEmail = userRole !== 'agent' // All roles except agent can send
+  const canViewHistory = ['super_admin', 'franchise'].includes(userRole)
+  const canEdit = true
+  const canCreate = true
+  const canSendDisbursementEmail = true
   const showInvoiceRequestColumn = ['franchise', 'super_admin'].includes(userRole)
 
   // Render AccountantLeads for accountants
@@ -88,8 +87,6 @@ const Leads = () => {
   }
 
   const [leads, setLeads] = useState([])
-  const [agents, setAgents] = useState([])
-  const [subAgents, setSubAgents] = useState([])
   const [banks, setBanks] = useState([])
   const [staff, setStaff] = useState([])
   const [bankManagers, setBankManagers] = useState([])
@@ -98,7 +95,6 @@ const Leads = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [franchiseFilter, setFranchiseFilter] = useState('')
-  const [agentFilter, setAgentFilter] = useState('')
   const [bankFilter, setBankFilter] = useState('')
   const [dsaCodeFilter, setDsaCodeFilter] = useState('')
   const [projectFilter, setProjectFilter] = useState('')
@@ -163,16 +159,15 @@ const Leads = () => {
         // Remove ALL commission-related columns and partner columns
         const commissionKeys = [
           'commissionPercentage', 'commissionAmount',
-          'agentCommissionPercentage', 'agentCommissionAmount',
-          'subAgentCommissionPercentage', 'subAgentCommissionAmount',
           'referralFranchiseCommissionPercentage', 'referralFranchiseCommissionAmount'
         ]
         let updated = filtered.filter(col => !commissionKeys.includes(col.key))
 
         // Remove Partner / Referral Associated / Associated columns (legacy + current)
         const removeKeys = new Set([
-          'agent', 'agentId', 'agentName', 'partner', 'partnerId', 'partnerName',
-          'subAgent', 'subAgentId', 'subAgentName', 'referral', 'referralAssociated', 'referral_associated',
+          'partner', 'partnerId', 'partnerName',
+          'createdBy', 'createdById', 'createdByName',
+          'referral', 'referralAssociated', 'referral_associated',
           'associated', 'associatedId', 'associatedModel', 'franchise', 'franchiseId'
         ])
         updated = updated.filter((col) => {
@@ -201,9 +196,6 @@ const Leads = () => {
           return col
         })
         
-        // Remove subAgent column (Sub Partner)
-        updated = updated.filter(col => col.key !== 'subAgent')
-        
         // Remove any duplicate columns based on key (keep first occurrence)
         const seenKeys = new Set()
         const deduplicated = updated.filter(col => {
@@ -231,10 +223,8 @@ const Leads = () => {
       col.key !== 'verificationStatus' &&
       col.key !== 'associated' &&
       col.key !== 'franchise' &&
-      col.key !== 'agent' &&
-      col.key !== 'agentName' &&
-      col.key !== 'subAgent' &&
-      col.key !== 'subAgentName' &&
+      col.key !== 'createdBy' &&
+      col.key !== 'createdByName' &&
       !String(col.label || '').toLowerCase().includes('partner') &&
       !String(col.label || '').toLowerCase().includes('referral') &&
       !String(col.label || '').toLowerCase().includes('associated')
@@ -257,18 +247,11 @@ const Leads = () => {
 
   useEffect(() => {
     fetchLeads()
-    if (!isAgent) {
-      fetchAgents()
-    }
-    // Fetch subAgents for hierarchy users to enable lookup
-    if (!isAgent) {
-      fetchSubAgents()
-    }
     fetchBanks()
     fetchBankManagers()
     fetchStaff()
     fetchFranchises()
-  }, [isAgent, userRole])
+  }, [userRole])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -302,66 +285,13 @@ const Leads = () => {
     try {
       setLoading(true)
       const response = await api.leads.getAll({ limit: 1000 })
-      console.log('🔍 DEBUG: Leads API response:', response)
-
       const leadsData = parseLeadsResponse(response)
-
-      console.log('🔍 DEBUG: Parsed leads data:', leadsData.length, 'leads')
-      if (leadsData.length > 0) {
-        const sampleLead = leadsData[0]
-        const agentIdValue = sampleLead.agentId || (sampleLead.agent && (sampleLead.agent._id || sampleLead.agent.id)) || sampleLead.agent
-        const bankIdValue = sampleLead.bankId || (sampleLead.bank && (sampleLead.bank._id || sampleLead.bank.id)) || sampleLead.bank
-        
-        console.log('🔍 DEBUG: Sample lead data:', {
-          leadId: sampleLead.id || sampleLead._id,
-          agent: sampleLead.agent,
-          agentId: agentIdValue,
-          agentType: typeof sampleLead.agent,
-          agentName: sampleLead.agent?.name || sampleLead.agentName,
-          agentFoundInArray: agentIdValue ? agents.find(a => String(a.id || a._id) === String(agentIdValue))?.name : null,
-          subAgent: sampleLead.subAgent,
-          subAgentName: sampleLead.subAgentName,
-          subAgentType: typeof sampleLead.subAgent,
-          subAgentId: sampleLead.subAgent?._id || sampleLead.subAgent?.id || sampleLead.subAgent,
-          bank: sampleLead.bank,
-          bankId: bankIdValue,
-          bankType: typeof sampleLead.bank,
-          bankName: sampleLead.bank?.name || sampleLead.bankName,
-          bankFoundInArray: bankIdValue ? banks.find(b => String(b.id || b._id) === String(bankIdValue))?.name : null,
-          banksArrayLength: banks.length,
-          agentsArrayLength: agents.length
-        })
-      }
       setLeads(leadsData)
     } catch (error) {
       console.error('Error fetching leads:', error)
       setLeads([])
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchAgents = async () => {
-    try {
-      const response = await api.users.getAll({ role: 'agent' })
-      const agentsData = response.data || response || []
-      setAgents(Array.isArray(agentsData) ? agentsData : [])
-    } catch (error) {
-      console.error('Error fetching agents:', error)
-      setAgents([])
-    }
-  }
-
-  const fetchSubAgents = async () => {
-    try {
-      // For hierarchy users, subAgents might be in the agents list (they're agents with parentAgent)
-      // The subAgents API might only work for agents, so we'll rely on backend population
-      // But we can try to get them from agents if needed
-      // For now, we'll rely on the backend populating subAgent in the leads response
-      setSubAgents([])
-    } catch (error) {
-      console.log('SubAgents fetch not needed, using populated data:', error.message)
-      setSubAgents([])
     }
   }
 
@@ -424,10 +354,6 @@ const Leads = () => {
       if (franchiseFilter) {
         const fid = lead.associated?._id || lead.associated?.id || lead.associated
         if (!fid || (fid !== franchiseFilter && fid.toString() !== franchiseFilter)) return false
-      }
-      if (agentFilter) {
-        const aid = lead.agent?._id || lead.agent?.id || lead.agent
-        if (!aid || (aid !== agentFilter && aid.toString() !== agentFilter)) return false
       }
       if (bankFilter) {
         const bid = lead.bank?._id || lead.bank?.id || lead.bank
@@ -517,7 +443,7 @@ const Leads = () => {
   // Filter and search leads
   const filteredLeads = useMemo(
     () => filterLeadsByUiState(leads),
-    [leads, searchTerm, statusFilter, franchiseFilter, agentFilter, bankFilter, dsaCodeFilter, projectFilter, loanTypeFilter, dateFromFilter, dateToFilter]
+    [leads, searchTerm, statusFilter, franchiseFilter, bankFilter, dsaCodeFilter, projectFilter, loanTypeFilter, dateFromFilter, dateToFilter]
   )
 
   const projectOptions = useMemo(() => {
@@ -535,7 +461,6 @@ const Leads = () => {
     searchTerm !== '' ||
     statusFilter !== 'all' ||
     franchiseFilter !== '' ||
-    agentFilter !== '' ||
     bankFilter !== '' ||
     dsaCodeFilter.trim() !== '' ||
     projectFilter.trim() !== '' ||
@@ -555,7 +480,6 @@ const Leads = () => {
     setSearchTerm('')
     setStatusFilter('all')
     setFranchiseFilter('')
-    setAgentFilter('')
     setBankFilter('')
     setDsaCodeFilter('')
     setProjectFilter('')
@@ -749,7 +673,7 @@ const Leads = () => {
 
   const formatFieldName = (field) => {
     const fieldMap = {
-      'agent': 'Agent',
+      'createdBy': 'Created By',
       'associated': 'Associated',
       'bank': 'Bank',
       'smBm': 'SM/BM',
@@ -788,11 +712,6 @@ const Leads = () => {
 
     // Handle ObjectId references - try to resolve to names
     if (typeof value === 'string' && value.match(/^[0-9a-fA-F]{24}$/)) {
-      // It's an ObjectId, try to resolve it
-      if (fieldName === 'agent') {
-        const agent = agents.find(a => (a._id || a.id) === value)
-        return agent ? agent.name : value.substring(0, 8) + '...'
-      }
       if (fieldName === 'bank') {
         const bank = banks.find(b => (b._id || b.id) === value)
         return bank ? bank.name : value.substring(0, 8) + '...'
@@ -812,11 +731,6 @@ const Leads = () => {
     if (typeof value === 'object') {
       if (value.name) return value.name
       if (value._id || value.id) {
-        // Try to resolve
-        if (fieldName === 'agent') {
-          const agent = agents.find(a => (a._id || a.id) === (value._id || value.id))
-          return agent ? agent.name : 'Unknown'
-        }
         if (fieldName === 'bank') {
           const bank = banks.find(b => (b._id || b.id) === (value._id || value.id))
           return bank ? bank.name : 'Unknown'
@@ -871,15 +785,9 @@ const Leads = () => {
         loanType: formData.loanType,
         loanAmount: formData.loanAmount ? parseFloat(formData.loanAmount) : undefined,
         status: formData.status || 'inquiry',
-        agent: formData.agentId || formData.agent || undefined,
-        // Support both shapes: payload may include `associated` or `associatedId`
         associated: formData.associated || formData.associatedId || formData.franchiseId || undefined,
         associatedModel: formData.associatedModel || (formData.franchiseId ? 'Franchise' : undefined),
         bank: formData.bankId || formData.bank || undefined,
-        // Include subAgent if provided
-        subAgent: formData.subAgent || undefined,
-        subAgentCommissionPercentage: formData.subAgentCommissionPercentage ? parseFloat(formData.subAgentCommissionPercentage) : undefined,
-        subAgentCommissionAmount: formData.subAgentCommissionAmount ? parseFloat(formData.subAgentCommissionAmount) : undefined,
         customerName: formData.customerName?.trim() || undefined,
         sanctionedDate: formData.sanctionedDate || undefined,
         disbursedAmount: formData.disbursedAmount ? parseFloat(formData.disbursedAmount) : undefined,
@@ -899,18 +807,6 @@ const Leads = () => {
         remarks: formData.remarks?.trim() || undefined,
       }
 
-      // Auto-assign the agent for newly created leads to the current user
-      // (only when creating, not when updating an existing lead)
-      const currentUser = authService.getUser()
-      if (!selectedLead) {
-        leadData.agent = leadData.agent || currentUser?._id || currentUser?.id || currentUser?.userId || undefined
-      }
-
-      console.log('🔍 DEBUG: Form data received:', formData)
-      console.log('🔍 DEBUG: Agent ID from form:', formData.agentId)
-      console.log('🔍 DEBUG: SubAgent from form:', formData.subAgent)
-      console.log('🔍 DEBUG: Creating/updating lead with data:', JSON.stringify(leadData, null, 2))
-
       if (selectedLead) {
         // Update existing lead
         const leadId = selectedLead.id || selectedLead._id
@@ -918,31 +814,17 @@ const Leads = () => {
           toast.error('Error', 'Lead ID is missing')
           return
         }
-        const response = await api.leads.update(leadId, leadData)
-        console.log('🔍 DEBUG: Update response:', response)
-        console.log('🔍 DEBUG: Updated lead agent data:', response?.data?.agent || response?.agent)
+        await api.leads.update(leadId, leadData)
 
-        // Refresh leads list to get updated data with populated agent
         await fetchLeads()
 
-        // Wait a bit to ensure state updates
-        setTimeout(() => {
-          console.log('🔍 DEBUG: Leads after refresh:', leads.length)
-        }, 500)
-
-        // Also refresh agents list in case it's needed for display
-        await fetchAgents()
-
-        // Refresh staff list in case a new SM/BM was created
         await fetchStaff()
 
         setIsEditModalOpen(false)
         toast.success('Success', 'Lead updated successfully')
       } else {
         // Create new lead
-        const createResponse = await api.leads.create(leadData)
-        console.log('🔍 DEBUG: Create response:', createResponse)
-        console.log('🔍 DEBUG: Created lead agent data:', createResponse?.data?.agent || createResponse?.agent)
+        await api.leads.create(leadData)
 
         await fetchLeads()
 
@@ -1087,8 +969,8 @@ const Leads = () => {
 
   const handleCommissionEdit = (lead, field) => {
     const leadId = lead.id || lead._id
-    const currentPercentage = lead.commissionPercentage || lead.agentCommissionPercentage || 0
-    const currentAmount = lead.commissionAmount || lead.agentCommissionAmount || 0
+    const currentPercentage = lead.commissionPercentage || 0
+    const currentAmount = lead.commissionAmount || 0
     
     setEditingCommission({ leadId, field })
     setCommissionEditValues({ 
@@ -1106,24 +988,11 @@ const Leads = () => {
 
     try {
       const updateData = {}
-      const isFranchiseLead = lead.agentCommissionPercentage !== undefined || lead.agentCommissionAmount !== undefined
-      
-      if (isFranchiseLead) {
-        // For franchise-created leads, update agent commission fields
-        if (commissionEditValues.percentage) {
-          updateData.agentCommissionPercentage = parseFloat(commissionEditValues.percentage)
-        }
-        if (commissionEditValues.amount) {
-          updateData.agentCommissionAmount = parseFloat(commissionEditValues.amount)
-        }
-      } else {
-        // For regular leads, update commission fields
-        if (commissionEditValues.percentage) {
-          updateData.commissionPercentage = parseFloat(commissionEditValues.percentage)
-        }
-        if (commissionEditValues.amount) {
-          updateData.commissionAmount = parseFloat(commissionEditValues.amount)
-        }
+      if (commissionEditValues.percentage) {
+        updateData.commissionPercentage = parseFloat(commissionEditValues.percentage)
+      }
+      if (commissionEditValues.amount) {
+        updateData.commissionAmount = parseFloat(commissionEditValues.amount)
       }
 
       await api.leads.update(leadId, updateData)
@@ -1142,71 +1011,11 @@ const Leads = () => {
     setCommissionEditValues({ percentage: '', amount: '' })
   }
 
-  const getAgentName = (agentIdOrObject) => {
-    if (!agentIdOrObject) return 'N/A'
-
-    // If it's already an object with name property
-    if (typeof agentIdOrObject === 'object' && agentIdOrObject.name) {
-      return agentIdOrObject.name
-    }
-
-    // Convert to string ID for comparison to handle ObjectId vs string mismatches
-    const agentIdStr = String(agentIdOrObject?._id || agentIdOrObject?.id || agentIdOrObject)
-    
-    // Try to find in agents array (most reliable source)
-    const foundAgent = agents.find((a) => {
-      const aId = String(a.id || a._id)
-      return aId === agentIdStr
-    })
-    if (foundAgent?.name) return foundAgent.name
-
-    // For agents, try to get name from populated lead data
-    if (isAgent && leads.length > 0) {
-      const lead = leads.find(l => {
-        const lAgentId = l.agent?._id || l.agent?.id || l.agentId || l.agent
-        return String(lAgentId) === agentIdStr
-      })
-      if (lead?.agent?.name) return lead.agent.name
-    }
-
-    // Final fallback - try direct ID match (for edge cases)
-    const agent = agents.find((a) => {
-      const aId = String(a.id || a._id)
-      return aId === agentIdStr || a.id === agentIdOrObject || a._id === agentIdOrObject
-    })
-    return agent ? (agent.name || 'N/A') : 'N/A'
-  }
-
-  const getSubAgentName = (subAgentIdOrObject) => {
-    if (!subAgentIdOrObject) return 'N/A'
-    
-    // If it's already an object with name, return it
-    if (typeof subAgentIdOrObject === 'object' && subAgentIdOrObject.name) {
-      return subAgentIdOrObject.name
-    }
-    
-    // Convert to string for comparison
-    const subAgentIdStr = String(
-      typeof subAgentIdOrObject === 'object' 
-        ? (subAgentIdOrObject._id || subAgentIdOrObject.id)
-        : subAgentIdOrObject
-    )
-    
-    // Try to find in subAgents array
-    const subAgent = subAgents.find((sa) => {
-      const saId = String(sa.id || sa._id)
-      return saId === subAgentIdStr
-    })
-    if (subAgent?.name) return subAgent.name
-    
-    // Try to find in agents array (subAgents might be in agents list)
-    const agent = agents.find((a) => {
-      const aId = String(a.id || a._id)
-      return aId === subAgentIdStr
-    })
-    if (agent?.name) return agent.name
-    
-    return 'N/A'
+  const getCreatedByName = (lead) => {
+    if (!lead) return 'N/A'
+    const creator = lead.createdByResolved || lead.createdBy
+    if (typeof creator === 'object' && creator?.name) return creator.name
+    return lead.createdByName || 'N/A'
   }
 
   const getBankName = (bankId) => {
@@ -1239,22 +1048,8 @@ const Leads = () => {
     if (lead.associated && typeof lead.associated === 'object' && lead.associated.name) {
       return lead.associated.name
     }
-    if (lead.agent && typeof lead.agent === 'object') {
-      const agent = lead.agent
-      if (agent.managedByModel === 'Franchise') {
-        return agent.managedBy?.name || 'N/A'
-      }
-    }
 
-    const agentId = lead.agentId || (lead.agent && (lead.agent._id || lead.agent.id)) || lead.agent
-    if (agentId) {
-      const agentObj = agents.find(a => (a._id || a.id) === agentId || (a._id || a.id)?.toString() === agentId?.toString())
-      if (agentObj && agentObj.managedByModel === 'Franchise') {
-        return agentObj.managedBy?.name || 'N/A'
-      }
-    }
-
-    return lead.associated?.name || 'N/A'
+    return lead.associated?.name || getFranchiseName(lead.associated || lead.franchiseId || lead.franchise) || 'N/A'
   }
 
   const getStaffName = (staffIdOrObject) => {
@@ -1358,15 +1153,10 @@ const Leads = () => {
           : lead.created_at
             ? new Date(lead.created_at).toLocaleDateString()
             : 'N/A'
-      case 'agent':
-      case 'agentId':
-      case 'agentName':
-        return lead.agent?.name || getAgentName(lead.agentId || lead.agent) || 'N/A'
-      case 'subAgent':
-      case 'subAgentId':
-      case 'subAgentName':
-        if (lead.subAgentName) return lead.subAgentName
-        return getSubAgentName(lead.subAgent)
+      case 'createdBy':
+      case 'createdById':
+      case 'createdByName':
+        return getCreatedByName(lead)
       default: {
         const v = lead[colKey]
         if (v == null) return ''
@@ -1430,23 +1220,6 @@ const Leads = () => {
 
     if (userRole === 'franchise' && (key === 'associated' || key === 'franchise' || label.includes('associated') || label.includes('franchise'))) {
       return false
-    }
-
-    // Agents have a more restrictive view: hide franchise/associated/agent/sanctioned info
-    // But allow subAgent to be visible for agents
-    if (isAgent) {
-      if (
-        (key === 'associated' ||
-        key === 'franchise' ||
-        key === 'agent' ||
-        key === 'sanctionedamount' ||
-        label.includes('franchise') ||
-        label.includes('associated') ||
-        (label.includes('agent') && key !== 'subagent') ||
-        label.includes('sanction')) && key !== 'subagent'
-      ) {
-        return false
-      }
     }
 
     return true
@@ -1664,36 +1437,19 @@ const Leads = () => {
                   ))}
                 </select>
               </div>
-              {!isAgent && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Associated</label>
-                    <select
-                      value={franchiseFilter}
-                      onChange={(e) => setFranchiseFilter(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
-                    >
-                      <option value="">All Associated</option>
-                      {franchises.map((f) => (
-                        <option key={f._id || f.id} value={f._id || f.id}>{f.name || 'Unnamed'}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Agent</label>
-                    <select
-                      value={agentFilter}
-                      onChange={(e) => setAgentFilter(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
-                    >
-                      <option value="">All agents</option>
-                      {agents.map((a) => (
-                        <option key={a._id || a.id} value={a._id || a.id}>{a.name || a.email || 'Unnamed'}</option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Associated</label>
+                <select
+                  value={franchiseFilter}
+                  onChange={(e) => setFranchiseFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
+                >
+                  <option value="">All Associated</option>
+                  {franchises.map((f) => (
+                    <option key={f._id || f.id} value={f._id || f.id}>{f.name || 'Unnamed'}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
                 <select
@@ -1925,8 +1681,8 @@ const Leads = () => {
                       case 'associated': {
                         const associatedName = getAssociatedName(lead)
                         const associatedObj = lead.associated
-                        const associatedEmail = associatedObj?.email || (lead.agent?.managedBy?.email) || 'N/A'
-                        const associatedMobile = associatedObj?.mobile || (lead.agent?.managedBy?.mobile) || 'N/A'
+                        const associatedEmail = associatedObj?.email || 'N/A'
+                        const associatedMobile = associatedObj?.mobile || 'N/A'
                         
                         return (
                           <div className="relative" data-expandable>
@@ -2342,18 +2098,6 @@ const Leads = () => {
                                 title="Disbursement Confirmation"
                               >
                                 <CheckCircle className="w-4 h-4" />
-                              </button>
-                            )}
-                            {isAgent && (lead.status === 'logged' || lead.status === 'inquiry') && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleStatusUpdate(lead.id || lead._id, 'disbursed')
-                                }}
-                                className="text-xs bg-primary-900 text-white px-3 py-1 rounded hover:bg-primary-800 transition-colors"
-                                title="Mark as Disbursed"
-                              >
-                                Mark Disbursed
                               </button>
                             )}
                             {canEdit && (
@@ -2861,47 +2605,8 @@ const Leads = () => {
               <h4 className="text-sm font-semibold text-gray-900 mb-3">Other Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Agent</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {(() => {
-                      if (selectedLead.agentName) return selectedLead.agentName;
-                      if (selectedLead.agent && typeof selectedLead.agent === 'object' && selectedLead.agent.name) {
-                        return selectedLead.agent.name
-                      }
-                      const agentId = selectedLead.agentId || (selectedLead.agent && (selectedLead.agent._id || selectedLead.agent.id)) || selectedLead.agent
-                      return getAgentName(agentId)
-                    })()}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Sub Agent</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {(() => {
-                      if (selectedLead.subAgentName) {
-                        return selectedLead.subAgentName;
-                      }
-                      if (selectedLead.subAgent) {
-                        if (typeof selectedLead.subAgent === 'object' && selectedLead.subAgent !== null) {
-                          if (selectedLead.subAgent.name) {
-                            return selectedLead.subAgent.name;
-                          }
-                          if (selectedLead.subAgent._id || selectedLead.subAgent.id) {
-                            const subAgentName = getSubAgentName(selectedLead.subAgent);
-                            if (subAgentName !== 'N/A') {
-                              return subAgentName;
-                            }
-                          }
-                        }
-                        if (typeof selectedLead.subAgent === 'string') {
-                          const subAgentName = getSubAgentName(selectedLead.subAgent);
-                          if (subAgentName !== 'N/A') {
-                            return subAgentName;
-                          }
-                        }
-                      }
-                      return 'N/A';
-                    })()}
-                  </p>
+                  <label className="text-sm font-medium text-gray-500">Created By</label>
+                  <p className="mt-1 text-sm text-gray-900">{getCreatedByName(selectedLead)}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Associated</label>

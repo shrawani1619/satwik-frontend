@@ -24,12 +24,10 @@ const Payouts = () => {
   const [payouts, setPayouts] = useState([])
   const [leads, setLeads] = useState([])
   const [franchises, setFranchises] = useState([])
-  const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [franchiseFilter, setFranchiseFilter] = useState('')
-  const [agentFilter, setAgentFilter] = useState('')
   const [dateFromFilter, setDateFromFilter] = useState('')
   const [dateToFilter, setDateToFilter] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(true)
@@ -40,15 +38,16 @@ const Payouts = () => {
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, payout: null })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
 
-  const getAgentId = (agent) => String(agent?._id || agent?.id || agent || '')
   const getFranchiseId = (franchise) => String(franchise?._id || franchise?.id || franchise || '')
 
-  const getAgentDisplay = (payout) => {
-    const agentObj = payout?.agent && typeof payout.agent === 'object' ? payout.agent : null
-    if (agentObj?.name) return agentObj.name
-    const id = getAgentId(payout?.agent)
-    const found = agents.find((a) => String(a._id || a.id) === id)
-    return found?.name || found?.email || (id ? id.slice(0, 8) + '...' : 'N/A')
+  const getPayeeDisplay = (payout) => {
+    const payee =
+      payout?.payee && typeof payout.payee === 'object'
+        ? payout.payee
+        : null
+    if (payee?.name) return payee.name
+    if (payee?.email) return payee.email
+    return 'N/A'
   }
 
   const getFranchiseDisplay = (payout) => {
@@ -72,7 +71,6 @@ const Payouts = () => {
     fetchPayouts()
     fetchLeads()
     fetchFranchises()
-    fetchAgents()
   }, [])
 
   const fetchFranchises = async () => {
@@ -81,14 +79,6 @@ const Payouts = () => {
       const data = res?.data || res || []
       setFranchises(Array.isArray(data) ? data : [])
     } catch (_) { setFranchises([]) }
-  }
-
-  const fetchAgents = async () => {
-    try {
-      const res = await api.agents.getAll()
-      const data = res?.data || res || []
-      setAgents(Array.isArray(data) ? data : [])
-    } catch (_) { setAgents([]) }
   }
 
   const fetchPayouts = async () => {
@@ -217,7 +207,7 @@ const Payouts = () => {
       filtered = filtered.filter(
         (p) =>
           p.payoutNumber?.toLowerCase().includes(term) ||
-          getAgentDisplay(p).toLowerCase().includes(term) ||
+          getPayeeDisplay(p).toLowerCase().includes(term) ||
           getFranchiseDisplay(p).toLowerCase().includes(term)
       )
     }
@@ -229,12 +219,6 @@ const Payouts = () => {
     if (franchiseFilter) {
       filtered = filtered.filter(
         (p) => (p.franchise?._id || p.franchise?.id || p.franchise)?.toString() === franchiseFilter
-      )
-    }
-
-    if (agentFilter) {
-      filtered = filtered.filter(
-        (p) => (p.agent?._id || p.agent?.id || p.agent)?.toString() === agentFilter
       )
     }
 
@@ -260,9 +244,9 @@ const Payouts = () => {
         let aVal = a[sortConfig.key]
         let bVal = b[sortConfig.key]
 
-        if (sortConfig.key === 'agent') {
-          aVal = getAgentDisplay(a) || ''
-          bVal = getAgentDisplay(b) || ''
+        if (sortConfig.key === 'payee') {
+          aVal = getPayeeDisplay(a) || ''
+          bVal = getPayeeDisplay(b) || ''
         } else if (sortConfig.key === 'franchise') {
           aVal = getFranchiseDisplay(a) || ''
           bVal = getFranchiseDisplay(b) || ''
@@ -283,7 +267,7 @@ const Payouts = () => {
     }
 
     return filtered
-  }, [payouts, searchTerm, statusFilter, franchiseFilter, agentFilter, dateFromFilter, dateToFilter, sortConfig, agents, franchises])
+  }, [payouts, searchTerm, statusFilter, franchiseFilter, dateFromFilter, dateToFilter, sortConfig, franchises])
 
   // Calculate statistics
   const totalPayouts = payouts.length
@@ -312,7 +296,7 @@ const Payouts = () => {
   ]
 
   const hasActiveFilters =
-    statusFilter !== 'all' || franchiseFilter || agentFilter || dateFromFilter || dateToFilter
+    statusFilter !== 'all' || franchiseFilter || dateFromFilter || dateToFilter
 
   if (userRole === 'regional_manager') {
     return <Navigate to="/" replace />
@@ -449,7 +433,7 @@ const Payouts = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Payout number, partner..."
+                    placeholder="Payout number, payee..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
@@ -481,21 +465,6 @@ const Payouts = () => {
                   {franchises.map((f) => (
                     <option key={f._id || f.id} value={f._id || f.id}>
                       {f.name || 'Unnamed'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Partner</label>
-                <select
-                  value={agentFilter}
-                  onChange={(e) => setAgentFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
-                >
-                  <option value="">All Agents</option>
-                  {agents.map((a) => (
-                    <option key={a._id || a.id} value={a._id || a.id}>
-                      {a.name || a.email || 'Unnamed'}
                     </option>
                   ))}
                 </select>
@@ -541,11 +510,11 @@ const Payouts = () => {
                 </th>
                 <th
                   className="px-3 sm:px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
-                  onClick={() => handleSort('agent')}
+                  onClick={() => handleSort('payee')}
                 >
                   <div className="flex items-center gap-1 sm:gap-2">
-                    Partner
-                    {getSortIcon('agent')}
+                    Payee
+                    {getSortIcon('payee')}
                   </div>
                 </th>
                 <th
@@ -602,7 +571,7 @@ const Payouts = () => {
                       <div className="text-xs sm:text-sm font-medium text-gray-900">{payout.payoutNumber}</div>
                     </td>
                     <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="text-xs sm:text-sm text-gray-900">{getAgentDisplay(payout)}</div>
+                      <div className="text-xs sm:text-sm text-gray-900">{getPayeeDisplay(payout)}</div>
                     </td>
                     <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="text-xs sm:text-sm text-gray-900">{getFranchiseDisplay(payout)}</div>
@@ -744,10 +713,10 @@ const Payouts = () => {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Partner</label>
-                <p className="mt-1 text-sm text-gray-900">{getAgentDisplay(selectedPayout)}</p>
+                <label className="text-sm font-medium text-gray-500">Payee</label>
+                <p className="mt-1 text-sm text-gray-900">{getPayeeDisplay(selectedPayout)}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {selectedPayout.agent?.email || selectedPayout.agent?.mobile || ''}
+                  {selectedPayout.payee?.email || selectedPayout.payee?.mobile || ''}
                 </p>
               </div>
               <div>
