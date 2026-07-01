@@ -1,8 +1,7 @@
 // API Configuration - ensure base URL always ends with /api for correct endpoint paths
 const rawBaseUrl =
   import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? 'http://localhost:8080' : 'https://satwik-backend.onrender.com');
-const normalized = rawBaseUrl.replace(/\/+$/, ''); // Remove trailing slashes
+  (import.meta.env.DEV ? 'http://localhost:8080' : 'https://api.satwiknetwork.com');const normalized = rawBaseUrl.replace(/\/+$/, ''); // Remove trailing slashes
 const API_BASE_URL = normalized.endsWith('/api') ? normalized : normalized + '/api';
 
 // Log API configuration in development

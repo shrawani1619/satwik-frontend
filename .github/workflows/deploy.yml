@@ -24,7 +24,7 @@ jobs:
 
             npm install
 
-            NODE_OPTIONS="--max-old-space-size=1024" npm run build
+            NODE_OPTIONS="--max-old-space-size=1024" VITE_API_BASE_URL=https://api.satwiknetwork.com npm run build
 
             sudo nginx -t
             sudo systemctl reload nginx
